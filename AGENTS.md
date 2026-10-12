@@ -61,6 +61,8 @@ All CLI configuration and sync stores live under the user's home directory:
   - Supports `--auto-rebase` (default `true`): pulls and rebases remote changes (e.g. remote README or commits from another device) before pushing. Aborts cleanly if conflicts arise.
   - Supports `--force` / `-f`: force pushes to remote repository to overwrite remote changes if needed.
 - `myconfig pull`: Aliased as `myconfig load` and `myconfig restore`. Pulls remote git changes and applies symlinks.
+  - Supports `--from-commit <hash/ref>`: fetches remote objects and checks out a specific commit hash, tag, or branch instead of latest HEAD before applying symlinks.
+  - Subsequent regular `myconfig pull` calls safely re-attach detached HEAD back to the repository's tracking/default branch before rebasing latest changes.
 - `myconfig import`: Reverse-syncs configurations from system targets into the central store directory (`~/.my_config_cli/config/`).
   - Requires `--tool <tool>` (`antigravity` and `gemini` are aliases; no default).
   - Supports `--dry-run` to preview actions.

@@ -20,12 +20,6 @@ Install `myconfig` to `~/.local/bin`:
 curl -fsSL https://raw.githubusercontent.com/dreamoutbox/my_config_cli/main/install.sh | sh
 ```
 
-Ensure `~/.local/bin` is in your `PATH`:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-
 ### From Source
 
 Requires Go 1.24+.
@@ -43,7 +37,7 @@ Requires Go 1.24+.
 Upload configurations from `~/.my_config_cli/config` to your git repository:
 
 ```bash
-myconfig push --repo git@github.com:username/ai-configs.git
+myconfig push --repo git@github.com:username/my-config.git
 ```
 
 The repository URL is saved to `~/.my_config_cli/settings.json`, so subsequent runs do not require `--repo`:
@@ -60,9 +54,11 @@ myconfig backup
 Pull configurations from git and immediately recreate all symlinks:
 
 ```bash
-myconfig pull --repo git@github.com:username/ai-configs.git
+myconfig pull --repo git@github.com:username/my-config.git
 # Or using the saved repository URL:
 myconfig pull
+# Pull configurations from a specific commit hash, tag, or ref:
+myconfig pull --from-commit a1b2c3d
 # Aliases:
 myconfig load
 myconfig restore

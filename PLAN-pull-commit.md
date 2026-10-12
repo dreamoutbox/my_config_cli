@@ -29,12 +29,12 @@ Add `--from-commit` flag to `myconfig pull` (and aliases `load`, `restore`) allo
 
 ---
 
-### Phase 3: Documentation and Verification [STATUS: TODO]
+### Phase 3: Documentation and Verification [STATUS: DONE]
 - Goal: Update documentation in `AGENTS.md` and `README.md` and verify end-to-end functionality.
 - Tasks:
-  - [ ] Update `AGENTS.md` to document the `--from-commit` flag lifecycle and detached HEAD handling during pull operations.
-  - [ ] Update `README.md` usage section with examples for `myconfig pull --from-commit <hash>`.
-  - [ ] Run full test suite (`./test.sh`), linter (`./lint.sh`), and binary build (`./build.sh`).
+  - [x] Update `AGENTS.md` to document the `--from-commit` flag lifecycle and detached HEAD handling during pull operations.
+  - [x] Update `README.md` usage section with examples for `myconfig pull --from-commit <hash>`.
+  - [x] Run full test suite (`./test.sh`), linter (`./lint.sh`), and binary build (`./build.sh`).
 - Done when: `./test.sh`, `./lint.sh`, and `./build.sh` exit 0, and all documentation reflects the new flag.
 
 ---
