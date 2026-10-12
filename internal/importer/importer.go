@@ -27,8 +27,19 @@ type Tool string
 
 const (
 	ToolAntigravity Tool = "antigravity"
+	ToolGemini      Tool = "gemini"
 	ToolAll         Tool = "all"
 )
+
+// NormalizeTool maps tool aliases to canonical tool identifiers.
+func NormalizeTool(tool Tool) Tool {
+	switch strings.ToLower(string(tool)) {
+	case "antigravity", "gemini":
+		return ToolAntigravity
+	default:
+		return Tool(strings.ToLower(string(tool)))
+	}
+}
 
 // Result captures the outcome of an individual entry import.
 type Result struct {
@@ -49,13 +60,14 @@ func DetectTool(entry config.Entry) Tool {
 // FilterEntries selects entries matching the requested tool.
 // ToolAll returns all entries unmodified.
 func FilterEntries(entries []config.Entry, tool Tool) []config.Entry {
-	if tool == ToolAll || tool == "" {
+	normalized := NormalizeTool(tool)
+	if normalized == ToolAll || normalized == "" {
 		return entries
 	}
 
 	var filtered []config.Entry
 	for _, entry := range entries {
-		if DetectTool(entry) == tool {
+		if DetectTool(entry) == normalized {
 			filtered = append(filtered, entry)
 		}
 	}

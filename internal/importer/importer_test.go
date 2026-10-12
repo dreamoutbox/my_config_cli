@@ -23,9 +23,14 @@ func TestDetectToolAndFilter(t *testing.T) {
 		t.Fatalf("expected unknown, got %v", DetectTool(entries[2]))
 	}
 
-	filtered := FilterEntries(entries, ToolAntigravity)
-	if len(filtered) != 2 {
-		t.Fatalf("expected 2 antigravity entries, got %d", len(filtered))
+	filteredAntigravity := FilterEntries(entries, ToolAntigravity)
+	if len(filteredAntigravity) != 2 {
+		t.Fatalf("expected 2 antigravity entries, got %d", len(filteredAntigravity))
+	}
+
+	filteredGemini := FilterEntries(entries, ToolGemini)
+	if len(filteredGemini) != 2 {
+		t.Fatalf("expected 2 gemini entries, got %d", len(filteredGemini))
 	}
 
 	all := FilterEntries(entries, ToolAll)

@@ -22,13 +22,22 @@ func TestRunImport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 1. Test Dry Run
-	importToolFlag = "antigravity"
-	importDryRunFlag = true
-
+	// 1. Test Missing Tool flag
+	importToolFlag = ""
+	importDryRunFlag = false
 	var outBuf bytes.Buffer
 	importCmd.SetOut(&outBuf)
 	importCmd.SetErr(&outBuf)
+
+	err := runImport(importCmd)
+	if err == nil || !strings.Contains(err.Error(), "--tool is required") {
+		t.Fatalf("expected error requiring --tool, got: %v", err)
+	}
+
+	// 2. Test Dry Run with "antigravity"
+	outBuf.Reset()
+	importToolFlag = "antigravity"
+	importDryRunFlag = true
 
 	if err := runImport(importCmd); err != nil {
 		t.Fatalf("dry runImport: %v", err)
@@ -42,12 +51,13 @@ func TestRunImport(t *testing.T) {
 		t.Fatalf("destMD should not exist after dry run")
 	}
 
-	// 2. Test Real Import
+	// 3. Test Real Import with alias "gemini"
 	outBuf.Reset()
+	importToolFlag = "gemini"
 	importDryRunFlag = false
 
 	if err := runImport(importCmd); err != nil {
-		t.Fatalf("real runImport: %v", err)
+		t.Fatalf("real runImport with gemini alias: %v", err)
 	}
 
 	destContent, err := os.ReadFile(destMD)
@@ -66,8 +76,9 @@ func TestRunImport(t *testing.T) {
 		t.Fatalf("expected output to report COPIED, got: %s", outStr)
 	}
 
-	// 3. Re-running after linking should report already linked or copied
+	// 4. Test subsequent import with "antigravity"
 	outBuf.Reset()
+	importToolFlag = "antigravity"
 	if err := runImport(importCmd); err != nil {
 		t.Fatalf("subsequent runImport: %v", err)
 	}

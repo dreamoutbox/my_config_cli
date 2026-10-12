@@ -60,7 +60,7 @@ All CLI configuration and sync stores live under the user's home directory:
 - `myconfig push`: Aliased as `myconfig save` and `myconfig backup`. Commits and pushes the central store to git.
 - `myconfig pull`: Aliased as `myconfig load` and `myconfig restore`. Pulls remote git changes and applies symlinks.
 - `myconfig import`: Reverse-syncs configurations from system targets into the central store directory (`~/.my_config_cli/config/`).
-  - Supports `--tool <tool>` (defaults to `antigravity`).
+  - Requires `--tool <tool>` (`antigravity` and `gemini` are aliases; no default).
   - Supports `--dry-run` to preview actions.
   - Safely skips existing symlinks that already point to the central store.
   - **No auto-push:** Does not run git commit or push; users must inspect status and manually execute `myconfig push`.
