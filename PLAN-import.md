@@ -16,18 +16,19 @@ Implement `myconfig import` to reverse-sync configuration files from target appl
 
 ---
 
-### Phase 2: CLI Command Integration [STATUS: TODO]
+### Phase 2: CLI Command Integration [STATUS: DONE]
 - Goal: Add `myconfig import` command in `cmd/import.go` wired to `rootCmd`.
 - Tasks:
-  - [ ] Create `cmd/import.go` with Cobra command definition for `import`.
-  - [ ] Support `--tool` flag (defaulting to `antigravity`) to restrict imports to Antigravity mappings.
-  - [ ] Support `--dry-run` flag to preview copy operations without modifying files on disk.
-  - [ ] Display concise, formatted summary output for each entry (e.g. `COPIED target -> source`, `SKIP reason`).
-  - [ ] Print clear instruction at the end reminding the user to inspect changes and run `myconfig push` manually (no automatic git commits or pushes).
-  - [ ] Write unit tests in `cmd/import_test.go` testing command execution and flag handling.
+  - [x] Create `cmd/import.go` with Cobra command definition for `import`.
+  - [x] Support `--tool` flag (defaulting to `antigravity`) to restrict imports to Antigravity mappings.
+  - [x] Support `--dry-run` flag to preview copy operations without modifying files on disk.
+  - [x] Display concise, formatted summary output for each entry (e.g. `COPIED target -> source`, `SKIP reason`).
+  - [x] Print clear instruction at the end reminding the user to inspect changes and run `myconfig push` manually (no automatic git commits or pushes).
+  - [x] Write unit tests in `cmd/import_test.go` testing command execution and flag handling.
 - Done when: `./test.sh` and `./lint.sh` pass, and `./build.sh` produces a binary where `./myconfig import --help` works as expected.
 
 ---
+
 
 ### Phase 3: Documentation and Verification [STATUS: TODO]
 - Goal: Update architecture documentation in `AGENTS.md` and verify end-to-end functionality.
