@@ -1,0 +1,95 @@
+{
+  "entries": [
+    {
+      "source": "~/.my_config_cli/config/.gemini/antigravity-cli/settings.json",
+      "target": "~/.gemini/antigravity-cli/settings.json",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/.gemini/config/config.json",
+      "target": "~/.gemini/config/config.json",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/AGENTS.md",
+      "target": "~/.gemini/GEMINI.md",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/mcp_config.json",
+      "target": "~/.gemini/config/mcp_config.json",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/mcp_config.json",
+      "target": "~/.gemini/antigravity/mcp_config.json",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/skills",
+      "target": "~/.gemini/config/skills",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/.pi/agent/settings.json",
+      "target": "~/.pi/agent/settings.json",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/AGENTS.md",
+      "target": "~/.pi/agent/SYSTEM.md",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/mcp_config.json",
+      "target": "~/.pi/agent/mcp.json",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/skills",
+      "target": "~/.pi/agent/skills",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/.config/opencode/opencode.json",
+      "target": "~/.config/opencode/opencode.json",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/AGENTS.md",
+      "target": "~/.config/opencode/AGENTS.md",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/skills",
+      "target": "~/.config/opencode/skills",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/mcp_config.json",
+      "target": "~/.config/opencode/opencode.json",
+      "type": "json_merge",
+      "json_key": "mcpServers"
+    },
+    {
+      "source": "~/.my_config_cli/config/.claude/config.json",
+      "target": "~/.claude/config.json",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/AGENTS.md",
+      "target": "~/.claude/CLAUDE.md",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/mcp_config.json",
+      "target": "~/.claude/mcp.json",
+      "type": "symlink"
+    },
+    {
+      "source": "~/.my_config_cli/config/skills",
+      "target": "~/.claude/skills",
+      "type": "symlink"
+    }
+  ]
+}
