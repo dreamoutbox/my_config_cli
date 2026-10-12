@@ -12,7 +12,7 @@ var Version = "0.1.0"
 
 var rootCmd = &cobra.Command{
 	Use:     "myconfig",
-	Short:   "Backup and restore AI tool configs to/from a git repository",
+	Short:   "Backup and restore configs to/from a git repository",
 	Version: Version,
 }
 
