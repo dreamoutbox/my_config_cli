@@ -4,14 +4,14 @@ Implement `myconfig import` to reverse-sync configuration files from target appl
 
 ---
 
-### Phase 1: Core Importer Logic and Copy Utilities [STATUS: TODO]
+### Phase 1: Core Importer Logic and Copy Utilities [STATUS: DONE]
 - Goal: Implement the reverse-mapping import engine, file/directory copy helpers, and tool filtering in `internal/importer`.
 - Tasks:
-  - [ ] Define typed enums for `ImportAction` (`ImportActionCopied`, `ImportActionSkipped`, `ImportActionAlreadyLinked`) and `Tool` (`ToolAntigravity`, `ToolAll`, etc.).
-  - [ ] Implement path resolution and recursive file/directory copier with permission preservation.
-  - [ ] Implement entry reverse evaluation: check target status, detect existing symlinks pointing to source, handle missing targets, and copy real files/directories to the source destination.
-  - [ ] Implement tool filtering logic to isolate Antigravity (`~/.gemini/...`) entries from other tool mappings.
-  - [ ] Write comprehensive unit tests in `internal/importer/import_test.go` covering file copies, directory trees, missing files, already-linked symlinks, and tool filtering.
+  - [x] Define typed enums for `ImportAction` (`ImportActionCopied`, `ImportActionSkipped`, `ImportActionAlreadyLinked`) and `Tool` (`ToolAntigravity`, `ToolAll`, etc.).
+  - [x] Implement path resolution and recursive file/directory copier with permission preservation.
+  - [x] Implement entry reverse evaluation: check target status, detect existing symlinks pointing to source, handle missing targets, and copy real files/directories to the source destination.
+  - [x] Implement tool filtering logic to isolate Antigravity (`~/.gemini/...`) entries from other tool mappings.
+  - [x] Write comprehensive unit tests in `internal/importer/import_test.go` covering file copies, directory trees, missing files, already-linked symlinks, and tool filtering.
 - Done when: `go test ./internal/importer/...` passes and `./lint.sh` passes.
 
 ---
