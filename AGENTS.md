@@ -35,7 +35,10 @@ Context, conventions, architecture, and cautions for AI coding agents working on
 │   ├── git/               # System git CLI wrappers (init, remote, commit, push, pull, status)
 │   ├── pathutil/          # Tilde (~) path expansion helper
 │   └── symlink/           # Symlink creation, health check, and json_merge engine
-├── Makefile               # build, lint, test, install targets
+├── build.sh               # Compiles ./myconfig
+├── lint.sh                # Runs go vet ./...
+├── test.sh                # Runs all unit tests
+├── install.sh             # Installs to GOPATH/bin
 └── main.go                # Application entrypoint
 ```
 
@@ -85,9 +88,9 @@ Supported tools in default mappings:
 
 - **Build & Verify:**
   ```bash
-  make lint    # Runs go vet ./...
-  make test    # Runs all unit tests
-  make build   # Compiles ./myconfig
+  ./lint.sh    # Runs go vet ./...
+  ./test.sh    # Runs all unit tests
+  ./build.sh   # Compiles ./myconfig
   ```
 - **Tests:** Always maintain full unit test coverage for new components.
   - `internal/git/git_test.go` uses local temp bare repositories to verify push/pull mechanics without network access.

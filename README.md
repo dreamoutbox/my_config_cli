@@ -15,9 +15,9 @@ CLI tool to backup, restore, and synchronize AI tool configurations across envir
 Requires Go 1.24+.
 
 ```bash
-make build
+./build.sh
 # or install directly into $GOPATH/bin
-make install
+./install.sh
 ```
 
 ## Usage
