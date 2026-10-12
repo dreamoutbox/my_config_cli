@@ -135,3 +135,149 @@ func TestGitPushAndPullWithLocalRemote(t *testing.T) {
 		t.Fatalf("expected 'client1 content', got %q", string(data))
 	}
 }
+
+func TestRemoteHasHeads(t *testing.T) {
+	tmp := t.TempDir()
+	bareRemote := filepath.Join(tmp, "remote.git")
+	local := filepath.Join(tmp, "local")
+
+	if err := os.MkdirAll(bareRemote, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := GitRun(bareRemote, "init", "--bare"); err != nil {
+		t.Fatalf("init bare remote: %v", err)
+	}
+
+	if err := EnsureRepo(local, bareRemote); err != nil {
+		t.Fatalf("EnsureRepo: %v", err)
+	}
+	configureGitUser(t, local)
+
+	hasHeads, err := RemoteHasHeads(local)
+	if err != nil {
+		t.Fatalf("RemoteHasHeads on empty remote: %v", err)
+	}
+	if hasHeads {
+		t.Fatal("expected empty remote to have no heads")
+	}
+
+	// Commit and push a file
+	if err := os.WriteFile(filepath.Join(local, "file.txt"), []byte("data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CommitAll(local, "first commit"); err != nil {
+		t.Fatalf("CommitAll: %v", err)
+	}
+	if err := Push(local); err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+
+	hasHeads, err = RemoteHasHeads(local)
+	if err != nil {
+		t.Fatalf("RemoteHasHeads after push: %v", err)
+	}
+	if !hasHeads {
+		t.Fatal("expected remote to have heads after push")
+	}
+}
+
+func TestPushForce(t *testing.T) {
+	tmp := t.TempDir()
+	bareRemote := filepath.Join(tmp, "remote.git")
+	client1 := filepath.Join(tmp, "client1")
+	client2 := filepath.Join(tmp, "client2")
+
+	if err := os.MkdirAll(bareRemote, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := GitRun(bareRemote, "init", "--bare"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Client 1 pushes commit A
+	if err := EnsureRepo(client1, bareRemote); err != nil {
+		t.Fatal(err)
+	}
+	configureGitUser(t, client1)
+	if err := os.WriteFile(filepath.Join(client1, "c1.txt"), []byte("from c1"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CommitAll(client1, "c1 commit"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Push(client1); err != nil {
+		t.Fatal(err)
+	}
+
+	// Client 2 initializes independently and tries normal push (fails without pull)
+	if err := EnsureRepo(client2, bareRemote); err != nil {
+		t.Fatal(err)
+	}
+	configureGitUser(t, client2)
+	if err := os.WriteFile(filepath.Join(client2, "c2.txt"), []byte("from c2"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CommitAll(client2, "c2 commit"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Normal push should fail
+	if err := Push(client2); err == nil {
+		t.Fatal("expected normal push to fail due to remote divergence")
+	}
+
+	// Force push should succeed
+	if err := PushWithOptions(client2, PushOptions{Force: true}); err != nil {
+		t.Fatalf("expected force push to succeed, got: %v", err)
+	}
+}
+
+func TestPullRebaseAndConflictAbort(t *testing.T) {
+	tmp := t.TempDir()
+	bareRemote := filepath.Join(tmp, "remote.git")
+	client1 := filepath.Join(tmp, "client1")
+	client2 := filepath.Join(tmp, "client2")
+
+	if err := os.MkdirAll(bareRemote, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := GitRun(bareRemote, "init", "--bare"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Client 1 pushes file with content "foo"
+	if err := EnsureRepo(client1, bareRemote); err != nil {
+		t.Fatal(err)
+	}
+	configureGitUser(t, client1)
+	if err := os.WriteFile(filepath.Join(client1, "conflict.txt"), []byte("remote foo"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CommitAll(client1, "remote commit"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Push(client1); err != nil {
+		t.Fatal(err)
+	}
+
+	// Client 2 pushes file with conflicting content "bar"
+	if err := EnsureRepo(client2, bareRemote); err != nil {
+		t.Fatal(err)
+	}
+	configureGitUser(t, client2)
+	if err := os.WriteFile(filepath.Join(client2, "conflict.txt"), []byte("local bar"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CommitAll(client2, "local commit"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Pull should fail due to conflict and abort rebase automatically
+	err := Pull(client2)
+	if err == nil {
+		t.Fatal("expected Pull to fail on merge conflict")
+	}
+	if IsRebaseInProgress(client2) {
+		t.Fatal("expected rebase in progress to be aborted")
+	}
+}

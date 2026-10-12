@@ -58,6 +58,8 @@ All CLI configuration and sync stores live under the user's home directory:
 
 ### Command Aliases and Operations
 - `myconfig push`: Aliased as `myconfig save` and `myconfig backup`. Commits and pushes the central store to git.
+  - Supports `--auto-rebase` (default `true`): pulls and rebases remote changes (e.g. remote README or commits from another device) before pushing. Aborts cleanly if conflicts arise.
+  - Supports `--force` / `-f`: force pushes to remote repository to overwrite remote changes if needed.
 - `myconfig pull`: Aliased as `myconfig load` and `myconfig restore`. Pulls remote git changes and applies symlinks.
 - `myconfig import`: Reverse-syncs configurations from system targets into the central store directory (`~/.my_config_cli/config/`).
   - Requires `--tool <tool>` (`antigravity` and `gemini` are aliases; no default).

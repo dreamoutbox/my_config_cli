@@ -37,8 +37,10 @@ func EnsureRepo(dir, repoURL string) error {
 
 	gitDir := filepath.Join(dir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
-		if _, err := GitRun(dir, "init"); err != nil {
-			return fmt.Errorf("initializing git repository: %w", err)
+		if _, err := GitRun(dir, "init", "-b", "main"); err != nil {
+			if _, err := GitRun(dir, "init"); err != nil {
+				return fmt.Errorf("initializing git repository: %w", err)
+			}
 		}
 	}
 
@@ -93,18 +95,54 @@ func CommitAll(dir, message string) (bool, error) {
 	return true, nil
 }
 
-// Push pushes committed changes to origin HEAD.
-func Push(dir string) error {
-	if _, err := GitRun(dir, "push", "-u", "origin", "HEAD"); err != nil {
+// PushOptions defines parameters for pushing commits to remote.
+type PushOptions struct {
+	Force bool
+}
+
+// PushWithOptions pushes committed changes to origin HEAD with optional flags.
+func PushWithOptions(dir string, opts PushOptions) error {
+	args := []string{"push"}
+	if opts.Force {
+		args = append(args, "--force")
+	}
+	args = append(args, "-u", "origin", "HEAD")
+	if _, err := GitRun(dir, args...); err != nil {
 		return fmt.Errorf("pushing to remote: %w", err)
 	}
 	return nil
 }
 
+// Push pushes committed changes to origin HEAD.
+func Push(dir string) error {
+	return PushWithOptions(dir, PushOptions{})
+}
+
+// RemoteHasHeads returns true if the remote origin has any branches or heads.
+func RemoteHasHeads(dir string) (bool, error) {
+	out, err := GitRun(dir, "ls-remote", "--heads", "origin")
+	if err != nil {
+		return false, fmt.Errorf("checking remote heads: %w", err)
+	}
+	return strings.TrimSpace(out) != "", nil
+}
+
+// IsRebaseInProgress returns true if a git rebase is in progress.
+func IsRebaseInProgress(dir string) bool {
+	gitDir := filepath.Join(dir, ".git")
+	_, errApply := os.Stat(filepath.Join(gitDir, "rebase-apply"))
+	_, errMerge := os.Stat(filepath.Join(gitDir, "rebase-merge"))
+	return errApply == nil || errMerge == nil
+}
+
 // Pull pulls latest changes using rebase from origin HEAD.
+// In case of a rebase failure or conflict, it aborts the rebase to keep the working tree clean.
 func Pull(dir string) error {
 	if _, err := GitRun(dir, "pull", "--rebase", "origin", "HEAD"); err != nil {
 		if _, err2 := GitRun(dir, "pull", "--rebase"); err2 != nil {
+			if IsRebaseInProgress(dir) {
+				_, _ = GitRun(dir, "rebase", "--abort")
+			}
 			return fmt.Errorf("pulling from remote: %w", err)
 		}
 	}

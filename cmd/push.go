@@ -18,6 +18,11 @@ var pushCmd = &cobra.Command{
 	},
 }
 
+var (
+	pushAutoRebaseFlag bool
+	pushForceFlag      bool
+)
+
 // runPush commits all files in the config store directory and pushes them to the git remote.
 func runPush(cmd *cobra.Command) error {
 	repoURL, err := resolveAndPersistRepo(repoFlag)
@@ -46,8 +51,27 @@ func runPush(cmd *cobra.Command) error {
 		fmt.Fprintln(cmd.OutOrStdout(), "No local changes detected in config store")
 	}
 
-	if err := git.Push(storeDir); err != nil {
-		return fmt.Errorf("pushing to remote: %w", err)
+	if pushForceFlag {
+		if err := git.PushWithOptions(storeDir, git.PushOptions{Force: true}); err != nil {
+			return fmt.Errorf("pushing to remote: %w", err)
+		}
+	} else {
+		if pushAutoRebaseFlag {
+			hasRemoteHeads, err := git.RemoteHasHeads(storeDir)
+			if err != nil {
+				return fmt.Errorf("checking remote status: %w", err)
+			}
+			if hasRemoteHeads {
+				fmt.Fprintln(cmd.OutOrStdout(), "Pulling remote changes (auto-rebase)...")
+				if err := git.Pull(storeDir); err != nil {
+					return fmt.Errorf("auto-rebase failed: %w (rebase aborted; resolve manually or use --force to overwrite)", err)
+				}
+			}
+		}
+
+		if err := git.Push(storeDir); err != nil {
+			return fmt.Errorf("pushing to remote: %w", err)
+		}
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "Successfully pushed configuration to %s\n", repoURL)
@@ -55,5 +79,7 @@ func runPush(cmd *cobra.Command) error {
 }
 
 func init() {
+	pushCmd.Flags().BoolVar(&pushAutoRebaseFlag, "auto-rebase", true, "Automatically pull and rebase remote changes before pushing")
+	pushCmd.Flags().BoolVarP(&pushForceFlag, "force", "f", false, "Force push to remote repository (overwrite remote)")
 	rootCmd.AddCommand(pushCmd)
 }
