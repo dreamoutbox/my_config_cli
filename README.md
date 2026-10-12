@@ -10,13 +10,29 @@ CLI tool to backup, restore, and synchronize AI tool configurations across envir
 - **JSON configuration merge**: Merges MCP server definitions into composite configs like `opencode.json` without overwriting unrelated settings.
 - **Health monitoring**: Inspect repository status and symlink health at any time.
 
-## Installation & Build
+## Installation
+
+### Using curl
+
+Install `myconfig` to `~/.local/bin`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dreamoutbox/my_config_cli/main/install.sh | sh
+```
+
+Ensure `~/.local/bin` is in your `PATH`:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### From Source
 
 Requires Go 1.24+.
 
 ```bash
 ./build.sh
-# or install directly into $GOPATH/bin
+# or install directly into ~/.local/bin
 ./install.sh
 ```
 

@@ -38,7 +38,10 @@ Context, conventions, architecture, and cautions for AI coding agents working on
 ├── build.sh               # Compiles ./myconfig
 ├── lint.sh                # Runs go vet ./...
 ├── test.sh                # Runs all unit tests
-├── install.sh             # Installs to GOPATH/bin
+├── install.sh             # Installs to ~/.local/bin
+├── release.sh             # Bumps version and tags release commit
+├── build-release.sh       # Compiles release binaries for multiple platforms
+├── VERSION                # Semantic version string
 └── main.go                # Application entrypoint
 ```
 

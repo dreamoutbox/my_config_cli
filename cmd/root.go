@@ -7,9 +7,13 @@ import (
 // repoFlag is the persistent --repo flag shared across push/pull commands.
 var repoFlag string
 
+// Version is the current application version.
+var Version = "0.1.0"
+
 var rootCmd = &cobra.Command{
-	Use:   "myconfig",
-	Short: "Backup and restore AI tool configs to/from a git repository",
+	Use:     "myconfig",
+	Short:   "Backup and restore AI tool configs to/from a git repository",
+	Version: Version,
 }
 
 // Execute runs the root command.
