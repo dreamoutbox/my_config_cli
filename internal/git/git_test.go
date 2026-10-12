@@ -281,3 +281,104 @@ func TestPullRebaseAndConflictAbort(t *testing.T) {
 		t.Fatal("expected rebase in progress to be aborted")
 	}
 }
+
+func TestFetchAndCheckout(t *testing.T) {
+	tmp := t.TempDir()
+	bareRemote := filepath.Join(tmp, "remote.git")
+	client1 := filepath.Join(tmp, "client1")
+	client2 := filepath.Join(tmp, "client2")
+
+	if err := os.MkdirAll(bareRemote, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := GitRun(bareRemote, "init", "--bare", "-b", "main"); err != nil {
+		if _, err := GitRun(bareRemote, "init", "--bare"); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Client 1 makes commit 1
+	if err := EnsureRepo(client1, bareRemote); err != nil {
+		t.Fatal(err)
+	}
+	configureGitUser(t, client1)
+	if err := os.WriteFile(filepath.Join(client1, "version.txt"), []byte("v1"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CommitAll(client1, "commit v1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Push(client1); err != nil {
+		t.Fatal(err)
+	}
+	commit1, err := CurrentCommit(client1, false)
+	if err != nil {
+		t.Fatalf("CurrentCommit: %v", err)
+	}
+	shortCommit1, err := CurrentCommit(client1, true)
+	if err != nil || len(shortCommit1) == 0 {
+		t.Fatalf("short commit: %v", err)
+	}
+
+	// Client 1 makes commit 2
+	if err := os.WriteFile(filepath.Join(client1, "version.txt"), []byte("v2"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CommitAll(client1, "commit v2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Push(client1); err != nil {
+		t.Fatal(err)
+	}
+
+	// Client 2 initializes empty repo and fetches
+	if err := EnsureRepo(client2, bareRemote); err != nil {
+		t.Fatal(err)
+	}
+	configureGitUser(t, client2)
+	if err := Fetch(client2); err != nil {
+		t.Fatalf("Fetch: %v", err)
+	}
+
+	// Checkout commit 1
+	if err := Checkout(client2, commit1); err != nil {
+		t.Fatalf("Checkout commit1: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(client2, "version.txt"))
+	if err != nil || string(data) != "v1" {
+		t.Fatalf("expected version.txt to have 'v1', got %q (err=%v)", string(data), err)
+	}
+
+	// Verify detached HEAD
+	br, err := CurrentBranch(client2)
+	if err != nil {
+		t.Fatalf("CurrentBranch: %v", err)
+	}
+	if br != "" {
+		t.Fatalf("expected detached HEAD (empty branch), got %q", br)
+	}
+
+	// Checkout non-existent ref should fail
+	if err := Checkout(client2, "non_existent_ref_12345"); err == nil {
+		t.Fatal("expected checkout of non-existent ref to fail")
+	}
+
+	// Pull should re-attach to default branch and bring v2
+	if err := Pull(client2); err != nil {
+		t.Fatalf("Pull after detached checkout: %v", err)
+	}
+
+	data, err = os.ReadFile(filepath.Join(client2, "version.txt"))
+	if err != nil || string(data) != "v2" {
+		t.Fatalf("expected version.txt to have 'v2' after pull, got %q (err=%v)", string(data), err)
+	}
+
+	br, err = CurrentBranch(client2)
+	if err != nil {
+		t.Fatalf("CurrentBranch: %v", err)
+	}
+	if br == "" {
+		t.Fatal("expected client2 to be attached to a branch after Pull, but got detached HEAD")
+	}
+}

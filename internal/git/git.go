@@ -135,9 +135,85 @@ func IsRebaseInProgress(dir string) bool {
 	return errApply == nil || errMerge == nil
 }
 
+// Fetch downloads objects and refs from origin remote.
+func Fetch(dir string) error {
+	if _, err := GitRun(dir, "fetch", "origin"); err != nil {
+		return fmt.Errorf("fetching from remote: %w", err)
+	}
+	return nil
+}
+
+// Checkout switches HEAD and working tree to the given commit, branch, or tag ref.
+func Checkout(dir, ref string) error {
+	if _, err := GitRun(dir, "checkout", ref); err != nil {
+		return fmt.Errorf("checking out %s: %w", ref, err)
+	}
+	return nil
+}
+
+// CurrentBranch returns the currently checked-out branch name, or empty string if HEAD is detached.
+func CurrentBranch(dir string) (string, error) {
+	out, err := GitRun(dir, "branch", "--show-current")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// CurrentCommit returns the commit hash of HEAD. If short is true, returns the abbreviated hash.
+func CurrentCommit(dir string, short bool) (string, error) {
+	args := []string{"rev-parse"}
+	if short {
+		args = append(args, "--short")
+	}
+	args = append(args, "HEAD")
+	out, err := GitRun(dir, args...)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// DefaultBranch determines the remote default branch name, falling back to "main" or "master".
+func DefaultBranch(dir string) string {
+	out, err := GitRun(dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+	if err == nil {
+		ref := strings.TrimSpace(out)
+		if strings.HasPrefix(ref, "origin/") {
+			return strings.TrimPrefix(ref, "origin/")
+		}
+	}
+	if _, err := GitRun(dir, "remote", "set-head", "origin", "-a"); err == nil {
+		out, err := GitRun(dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+		if err == nil {
+			ref := strings.TrimSpace(out)
+			if strings.HasPrefix(ref, "origin/") {
+				return strings.TrimPrefix(ref, "origin/")
+			}
+		}
+	}
+	for _, branch := range []string{"main", "master"} {
+		if _, err := GitRun(dir, "rev-parse", "--verify", "origin/"+branch); err == nil {
+			return branch
+		}
+		if _, err := GitRun(dir, "rev-parse", "--verify", branch); err == nil {
+			return branch
+		}
+	}
+	return "main"
+}
+
 // Pull pulls latest changes using rebase from origin HEAD.
+// If the working tree is in detached HEAD, it switches back to the default branch first.
 // In case of a rebase failure or conflict, it aborts the rebase to keep the working tree clean.
 func Pull(dir string) error {
+	branch, err := CurrentBranch(dir)
+	if err == nil && branch == "" {
+		// Reattach to default branch if in detached HEAD state
+		defBranch := DefaultBranch(dir)
+		_ = Checkout(dir, defBranch)
+	}
+
 	if _, err := GitRun(dir, "pull", "--rebase", "origin", "HEAD"); err != nil {
 		if _, err2 := GitRun(dir, "pull", "--rebase"); err2 != nil {
 			if IsRebaseInProgress(dir) {
