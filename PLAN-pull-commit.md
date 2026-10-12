@@ -15,16 +15,16 @@ Add `--from-commit` flag to `myconfig pull` (and aliases `load`, `restore`) allo
 
 ---
 
-### Phase 2: CLI Integration - `--from-commit` Flag in `cmd/pull.go` [STATUS: TODO]
+### Phase 2: CLI Integration - `--from-commit` Flag in `cmd/pull.go` [STATUS: DONE]
 - Goal: Add `--from-commit` flag to `myconfig pull` and invoke fetch + checkout flow prior to applying symlinks and merges.
 - Tasks:
-  - [ ] Declare `pullFromCommitFlag string` in `cmd/pull.go` and register `--from-commit` flag on `pullCmd`.
-  - [ ] Update `runPull` in `cmd/pull.go` to branch logic based on `pullFromCommitFlag`:
+  - [x] Declare `pullFromCommitFlag string` in `cmd/pull.go` and register `--from-commit` flag on `pullCmd`.
+  - [x] Update `runPull` in `cmd/pull.go` to branch logic based on `pullFromCommitFlag`:
     - When `--from-commit` is non-empty: run `git.Fetch(storeDir)` followed by `git.Checkout(storeDir, pullFromCommitFlag)`, then display confirmation with the target commit.
     - When `--from-commit` is empty: run existing `git.Pull(storeDir)` workflow.
     - If checkout fails, abort immediately without applying links or merges.
-  - [ ] Retain downstream `runLink(cmd)` call so symlinks and merges are applied from the checked-out commit.
-  - [ ] Create `cmd/pull_test.go` verifying `pull` defaults to latest, `pull --from-commit <hash>` checks out and applies historic commit configurations, and invalid commits return an error without modifying links.
+  - [x] Retain downstream `runLink(cmd)` call so symlinks and merges are applied from the checked-out commit.
+  - [x] Create `cmd/pull_test.go` verifying `pull` defaults to latest, `pull --from-commit <hash>` checks out and applies historic commit configurations, and invalid commits return an error without modifying links.
 - Done when: `go test ./cmd/...` passes, `./lint.sh` passes, and `./build.sh` produces `./myconfig` with `--from-commit` flag registered on `pull`.
 
 ---
