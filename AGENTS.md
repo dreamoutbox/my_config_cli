@@ -27,12 +27,14 @@ Context, conventions, architecture, and cautions for AI coding agents working on
 │   ├── root.go            # Root command and persistent flags (--repo)
 │   ├── repo.go            # Repository URL resolution and settings persistence
 │   ├── link.go            # 'myconfig link' command
+│   ├── import.go          # 'myconfig import' command (reverse sync)
 │   ├── push.go            # 'myconfig push' (aliases: save, backup)
 │   ├── pull.go            # 'myconfig pull' (aliases: load, restore)
 │   └── status.go          # 'myconfig status' (git state + mapping health)
 ├── internal/
 │   ├── config/            # Settings (settings.json) and Mapping (mapping.json) loaders
 │   ├── git/               # System git CLI wrappers (init, remote, commit, push, pull, status)
+│   ├── importer/          # Reverse-mapping importer engine and copy utilities
 │   ├── pathutil/          # Tilde (~) path expansion helper
 │   └── symlink/           # Symlink creation, health check, and json_merge engine
 ├── build.sh               # Compiles ./myconfig
@@ -54,9 +56,14 @@ All CLI configuration and sync stores live under the user's home directory:
 - `~/.my_config_cli/mapping.json`: Stores mapping relationships. Seeded from embedded `assets/mapping.json` on first run if missing.
 - `~/.my_config_cli/config/`: Central directory tracked by git containing the canonical configuration files and directories.
 
-### Command Aliases
-- `myconfig push`: Aliased as `myconfig save` and `myconfig backup`.
-- `myconfig pull`: Aliased as `myconfig load` and `myconfig restore`.
+### Command Aliases and Operations
+- `myconfig push`: Aliased as `myconfig save` and `myconfig backup`. Commits and pushes the central store to git.
+- `myconfig pull`: Aliased as `myconfig load` and `myconfig restore`. Pulls remote git changes and applies symlinks.
+- `myconfig import`: Reverse-syncs configurations from system targets into the central store directory (`~/.my_config_cli/config/`).
+  - Supports `--tool <tool>` (defaults to `antigravity`).
+  - Supports `--dry-run` to preview actions.
+  - Safely skips existing symlinks that already point to the central store.
+  - **No auto-push:** Does not run git commit or push; users must inspect status and manually execute `myconfig push`.
 
 ### Repository Resolution Precedence
 1. Command line flag `--repo <url>` (if passed, automatically persisted to `settings.json`).

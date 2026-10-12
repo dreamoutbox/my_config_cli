@@ -30,12 +30,12 @@ Implement `myconfig import` to reverse-sync configuration files from target appl
 ---
 
 
-### Phase 3: Documentation and Verification [STATUS: TODO]
+### Phase 3: Documentation and Verification [STATUS: DONE]
 - Goal: Update architecture documentation in `AGENTS.md` and verify end-to-end functionality.
 - Tasks:
-  - [ ] Update [AGENTS.md](AGENTS.md) with details on `myconfig import`, tool filtering, and reverse-mapping lifecycle.
-  - [ ] Verify execution using temp environment fixtures replicating Antigravity directories.
-  - [ ] Run full test suite (`./test.sh`), linter (`./lint.sh`), and compiler (`./build.sh`).
+  - [x] Update [AGENTS.md](AGENTS.md) with details on `myconfig import`, tool filtering, and reverse-mapping lifecycle.
+  - [x] Verify execution using temp environment fixtures replicating Antigravity directories.
+  - [x] Run full test suite (`./test.sh`), linter (`./lint.sh`), and compiler (`./build.sh`).
 - Done when: `./test.sh`, `./lint.sh`, and `./build.sh` exit 0, and all documentation is up to date.
 
 ---
