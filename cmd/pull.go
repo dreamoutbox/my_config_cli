@@ -36,18 +36,18 @@ func runPull(cmd *cobra.Command) error {
 	}
 
 	if pullFromCommitFlag != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "Fetching configuration from %s...\n", repoURL)
+		fmt.Fprintf(cmd.OutOrStdout(), "Fetching configuration from %s...\n", git.MaskURL(repoURL))
 		if err := git.Fetch(storeDir); err != nil {
-			return fmt.Errorf("fetching from remote: %w", err)
+			return err
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "Checking out commit %s...\n", pullFromCommitFlag)
 		if err := git.Checkout(storeDir, pullFromCommitFlag); err != nil {
 			return fmt.Errorf("checking out commit %s: %w", pullFromCommitFlag, err)
 		}
 	} else {
-		fmt.Fprintf(cmd.OutOrStdout(), "Pulling configuration from %s...\n", repoURL)
+		fmt.Fprintf(cmd.OutOrStdout(), "Pulling configuration from %s...\n", git.MaskURL(repoURL))
 		if err := git.Pull(storeDir); err != nil {
-			return fmt.Errorf("pulling from remote: %w", err)
+			return err
 		}
 	}
 

@@ -28,6 +28,9 @@ func runStatus(cmd *cobra.Command) error {
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), "=== Git Status ===")
+	if settings, err := config.LoadSettings(); err == nil && strings.TrimSpace(settings.RepoURL) != "" {
+		fmt.Fprintf(cmd.OutOrStdout(), "Repository: %s\n", git.MaskURL(settings.RepoURL))
+	}
 	gitDir := filepath.Join(storeDir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		fmt.Fprintf(cmd.OutOrStdout(), "Store repository not initialized at %s\n", storeDir)

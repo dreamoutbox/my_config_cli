@@ -24,18 +24,18 @@ Fix two problems found when running `myconfig pull` on a fresh machine:
 
 ---
 
-### Phase 1: Auth Fallback for Git Network Operations [STATUS: TODO]
+### Phase 1: Auth Fallback for Git Network Operations [STATUS: DONE]
 - Goal: On access-denied errors, retry once without ambient credentials and let the user type login/password (as if git was never configured).
 - Tasks:
-  - [ ] In `internal/git`, add `error.go` with `IsAuthError(err error) bool` matching stderr substrings: `unable to access`, `returned error: 403`, `Authentication failed`, `could not read Username`, `Write access to repository not granted`. Use a typed enum/constants for the patterns.
-  - [ ] Add `GitRunInteractive(dir string, extraEnv []string, args ...string)` (shared by all callers, no duplicated exec code) that wires `os.Stdin/Stdout/Stderr` so git can prompt for username/password.
-  - [ ] Define the "clean credential" env/config used on retry: `GIT_TERMINAL_PROMPT=1`, `GIT_ASKPASS=` and `SSH_ASKPASS=` cleared, `GH_TOKEN`/`GITHUB_TOKEN` removed, and `-c credential.helper=` (empty, resets the helper list) so no stored/env token is used. Credentials are never persisted by myconfig.
-  - [ ] Add `RunWithAuthRetry(dir string, args ...string)`: run normally; if `IsAuthError`, print a short notice ("Access denied with default credentials; enter credentials for <host>"), then rerun interactively with the clean setup. Only the network commands use it: `pull`, `fetch`, `push`, `ls-remote`.
-  - [ ] Switch `Pull`, `Fetch`, `PushWithOptions`, `RemoteHasHeads` to the retry helper. Fix the double-wrapped message ("pulling from remote: pulling from remote:") while there.
-  - [ ] 404 / `Repository not found` is NOT an auth error: no retry; return a clear error "repository does not exist (or URL is wrong): <masked url>". Add `IsNotFoundError(err)` and a test.
-  - [ ] Skip retry when stdin is not a TTY (CI): return the original error with a hint to use a PAT in `--repo`.
-  - [ ] Add shared helper `MaskURL(raw string) string` (in `internal/git`) replacing embedded `user:token@` with `***@`. Use it in every printed URL (`Pulling/Fetching configuration from ...` in `cmd/pull.go`, `push`, `status`) and in wrapped git errors (git stderr may echo the URL). Tests: PAT URL, plain URL, ssh URL unchanged.
-  - [ ] Unit tests: `IsAuthError` table test; retry path using a fake `git` on `PATH` (script in `testdata/`) that fails with 403 on first call and succeeds when `GITHUB_TOKEN` is absent and credential helper is reset; non-auth errors do not retry.
+  - [x] In `internal/git`, add `error.go` with `IsAuthError(err error) bool` matching stderr substrings: `unable to access`, `returned error: 403`, `Authentication failed`, `could not read Username`, `Write access to repository not granted`. Use a typed enum/constants for the patterns.
+  - [x] Add `GitRunInteractive(dir string, extraEnv []string, args ...string)` (shared by all callers, no duplicated exec code) that wires `os.Stdin/Stdout/Stderr` so git can prompt for username/password.
+  - [x] Define the "clean credential" env/config used on retry: `GIT_TERMINAL_PROMPT=1`, `GIT_ASKPASS=` and `SSH_ASKPASS=` cleared, `GH_TOKEN`/`GITHUB_TOKEN` removed, and `-c credential.helper=` (empty, resets the helper list) so no stored/env token is used. Credentials are never persisted by myconfig.
+  - [x] Add `RunWithAuthRetry(dir string, args ...string)`: run normally; if `IsAuthError`, print a short notice ("Access denied with default credentials; enter credentials for <host>"), then rerun interactively with the clean setup. Only the network commands use it: `pull`, `fetch`, `push`, `ls-remote`.
+  - [x] Switch `Pull`, `Fetch`, `PushWithOptions`, `RemoteHasHeads` to the retry helper. Fix the double-wrapped message ("pulling from remote: pulling from remote:") while there.
+  - [x] 404 / `Repository not found` is NOT an auth error: no retry; return a clear error "repository does not exist (or URL is wrong): <masked url>". Add `IsNotFoundError(err)` and a test.
+  - [x] Skip retry when stdin is not a TTY (CI): return the original error with a hint to use a PAT in `--repo`.
+  - [x] Add shared helper `MaskURL(raw string) string` (in `internal/git`) replacing embedded `user:token@` with `***@`. Use it in every printed URL (`Pulling/Fetching configuration from ...` in `cmd/pull.go`, `push`, `status`) and in wrapped git errors (git stderr may echo the URL). Tests: PAT URL, plain URL, ssh URL unchanged.
+  - [x] Unit tests: `IsAuthError` table test; retry path using a fake `git` on `PATH` (script in `testdata/`) that fails with 403 on first call and succeeds when `GITHUB_TOKEN` is absent and credential helper is reset; non-auth errors do not retry.
 - Done when: `./test.sh` and `./lint.sh` pass; manual run with a wrong `GITHUB_TOKEN` prompts for username/password and succeeds.
 
 ---

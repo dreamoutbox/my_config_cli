@@ -53,7 +53,7 @@ func runPush(cmd *cobra.Command) error {
 
 	if pushForceFlag {
 		if err := git.PushWithOptions(storeDir, git.PushOptions{Force: true}); err != nil {
-			return fmt.Errorf("pushing to remote: %w", err)
+			return err
 		}
 	} else {
 		if pushAutoRebaseFlag {
@@ -70,11 +70,11 @@ func runPush(cmd *cobra.Command) error {
 		}
 
 		if err := git.Push(storeDir); err != nil {
-			return fmt.Errorf("pushing to remote: %w", err)
+			return err
 		}
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Successfully pushed configuration to %s\n", repoURL)
+	fmt.Fprintf(cmd.OutOrStdout(), "Successfully pushed configuration to %s\n", git.MaskURL(repoURL))
 	return nil
 }
 

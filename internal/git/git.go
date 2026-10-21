@@ -4,6 +4,7 @@ package git
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,18 +13,33 @@ import (
 
 // GitRun executes a git subcommand inside the given working directory.
 func GitRun(dir string, args ...string) (string, error) {
+	return runGit(dir, nil, false, args...)
+}
+
+// runGit is the shared exec path for non-interactive and interactive commands.
+// extraEnv replaces the inherited environment when non-nil; interactive wires
+// stdin and stderr to the terminal so git can prompt for credentials.
+func runGit(dir string, extraEnv []string, interactive bool, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	if interactive {
+		cmd.Stdin = os.Stdin
+		cmd.Stderr = io.MultiWriter(&stderr, os.Stderr)
+	}
+	if extraEnv != nil {
+		cmd.Env = extraEnv
+	}
 
 	if err := cmd.Run(); err != nil {
 		errOutput := strings.TrimSpace(stderr.String())
 		if errOutput == "" {
 			errOutput = strings.TrimSpace(stdout.String())
 		}
-		return stdout.String(), fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, errOutput)
+		// Git may echo the remote URL in its errors; never leak embedded tokens.
+		return stdout.String(), fmt.Errorf("git %s: %w: %s", MaskURL(strings.Join(args, " ")), err, MaskURL(errOutput))
 	}
 
 	return stdout.String(), nil
@@ -107,7 +123,7 @@ func PushWithOptions(dir string, opts PushOptions) error {
 		args = append(args, "--force")
 	}
 	args = append(args, "-u", "origin", "HEAD")
-	if _, err := GitRun(dir, args...); err != nil {
+	if _, err := RunWithAuthRetry(dir, args...); err != nil {
 		return fmt.Errorf("pushing to remote: %w", err)
 	}
 	return nil
@@ -120,7 +136,7 @@ func Push(dir string) error {
 
 // RemoteHasHeads returns true if the remote origin has any branches or heads.
 func RemoteHasHeads(dir string) (bool, error) {
-	out, err := GitRun(dir, "ls-remote", "--heads", "origin")
+	out, err := RunWithAuthRetry(dir, "ls-remote", "--heads", "origin")
 	if err != nil {
 		return false, fmt.Errorf("checking remote heads: %w", err)
 	}
@@ -137,7 +153,7 @@ func IsRebaseInProgress(dir string) bool {
 
 // Fetch downloads objects and refs from origin remote.
 func Fetch(dir string) error {
-	if _, err := GitRun(dir, "fetch", "origin"); err != nil {
+	if _, err := RunWithAuthRetry(dir, "fetch", "origin"); err != nil {
 		return fmt.Errorf("fetching from remote: %w", err)
 	}
 	return nil
@@ -214,8 +230,8 @@ func Pull(dir string) error {
 		_ = Checkout(dir, defBranch)
 	}
 
-	if _, err := GitRun(dir, "pull", "--rebase", "origin", "HEAD"); err != nil {
-		if _, err2 := GitRun(dir, "pull", "--rebase"); err2 != nil {
+	if _, err := RunWithAuthRetry(dir, "pull", "--rebase", "origin", "HEAD"); err != nil {
+		if _, err2 := RunWithAuthRetry(dir, "pull", "--rebase"); err2 != nil {
 			if IsRebaseInProgress(dir) {
 				_, _ = GitRun(dir, "rebase", "--abort")
 			}
