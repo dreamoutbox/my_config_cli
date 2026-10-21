@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -35,6 +36,8 @@ type Mapping struct {
 
 // LoadMapping reads ~/.my_config_cli/mapping.json.
 // If the file does not exist, it writes and returns the embedded default.
+// Symlink entries that collide with a json_merge target are dropped and the
+// cleaned mapping is persisted once, migrating users seeded before the fix.
 func LoadMapping() (Mapping, error) {
 	dir, err := BaseDir()
 	if err != nil {
@@ -57,5 +60,48 @@ func LoadMapping() (Mapping, error) {
 	}
 
 	var m Mapping
-	return m, json.Unmarshal(data, &m)
+	if err := json.Unmarshal(data, &m); err != nil {
+		return Mapping{}, err
+	}
+
+	if dropConflictingSymlinks(&m) {
+		if err := saveMapping(path, m); err != nil {
+			return Mapping{}, fmt.Errorf("persisting migrated mapping: %w", err)
+		}
+	}
+
+	return m, nil
+}
+
+// dropConflictingSymlinks removes symlink entries whose target is also managed
+// by a json_merge entry, warning about each removal. Returns true if changed.
+func dropConflictingSymlinks(m *Mapping) bool {
+	mergeTargets := make(map[string]bool)
+	for _, entry := range m.Entries {
+		if entry.Type == EntryTypeJSONMerge {
+			mergeTargets[entry.Target] = true
+		}
+	}
+
+	kept := m.Entries[:0]
+	changed := false
+	for _, entry := range m.Entries {
+		if entry.Type == EntryTypeSymlink && mergeTargets[entry.Target] {
+			fmt.Fprintf(os.Stderr, "warning: ignoring symlink entry for %s (target is managed by json_merge)\n", entry.Target)
+			changed = true
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	m.Entries = kept
+	return changed
+}
+
+// saveMapping writes the mapping back to disk, preserving all user entries.
+func saveMapping(path string, m Mapping) error {
+	data, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(data, '\n'), 0o600)
 }

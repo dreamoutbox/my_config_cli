@@ -52,13 +52,13 @@ Fix two problems found when running `myconfig pull` on a fresh machine:
 
 ---
 
-### Phase 3: Fix Mapping Conflict and Migrate Existing Users [STATUS: TODO]
+### Phase 3: Fix Mapping Conflict and Migrate Existing Users [STATUS: DONE]
 - Goal: Remove the invalid `symlink` entry for `opencode.json` and repair stored mappings.
 - Tasks:
-  - [ ] Delete the `symlink` entry for `~/.config/opencode/opencode.json` from `assets/mapping.json` (json_merge entry remains, as AGENTS.md requires).
-  - [ ] In `config.LoadMapping`, add validation: reject/skip a `symlink` entry whose target equals a `json_merge` target; emit a warning.
-  - [ ] Add a one-time migration in `internal/config` that drops such conflicting entries from an existing `~/.my_config_cli/mapping.json` (no overwrite of other user edits). Unit test with a temp `HOME`.
-  - [ ] `import` for opencode: confirm it does not rely on the removed symlink entry (check `internal/importer`).
+  - [x] Delete the `symlink` entry for `~/.config/opencode/opencode.json` from `assets/mapping.json` (json_merge entry remains, as AGENTS.md requires).
+  - [x] In `config.LoadMapping`, add validation: reject/skip a `symlink` entry whose target equals a `json_merge` target; emit a warning.
+  - [x] Add a one-time migration in `internal/config` that drops such conflicting entries from an existing `~/.my_config_cli/mapping.json` (no overwrite of other user edits). Unit test with a temp `HOME`.
+  - [x] `import` for opencode: confirm it does not rely on the removed symlink entry (check `internal/importer`).
 - Done when: `myconfig pull` on a clean home produces no `FAIL`, and `status` no longer lists the opencode symlink entry.
 
 ---

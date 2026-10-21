@@ -51,11 +51,6 @@
       "type": "symlink"
     },
     {
-      "source": "~/.my_config_cli/config/.config/opencode/opencode.json",
-      "target": "~/.config/opencode/opencode.json",
-      "type": "symlink"
-    },
-    {
       "source": "~/.my_config_cli/config/AGENTS.md",
       "target": "~/.config/opencode/AGENTS.md",
       "type": "symlink"
