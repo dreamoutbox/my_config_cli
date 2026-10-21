@@ -40,14 +40,14 @@ Fix two problems found when running `myconfig pull` on a fresh machine:
 
 ---
 
-### Phase 2: Safe JSON Merge (never write through symlinks) [STATUS: TODO]
+### Phase 2: Safe JSON Merge (never write through symlinks) [STATUS: DONE]
 - Goal: `json_merge` works whether or not the tool is installed and never follows a dangling symlink.
 - Tasks:
-  - [ ] Write a failing test in `internal/symlink/link_test.go` reproducing the bug: dangling symlink at target, then `applyJSONMerge` -> expect success.
-  - [ ] In `applyJSONMerge`, `os.Lstat(dst)` first; if `dst` is a symlink, remove it before reading/writing so a real file is written.
-  - [ ] Write atomically (temp file in same dir + rename) so a failed write cannot leave a half file.
-  - [ ] Make a missing/empty source (`mcp_config.json` absent) a clear error, not an opaque `open` failure.
-  - [ ] Preserve existing behavior: other keys of an existing real `opencode.json` untouched.
+  - [x] Write a failing test in `internal/symlink/link_test.go` reproducing the bug: dangling symlink at target, then `applyJSONMerge` -> expect success.
+  - [x] In `applyJSONMerge`, `os.Lstat(dst)` first; if `dst` is a symlink, remove it before reading/writing so a real file is written.
+  - [x] Write atomically (temp file in same dir + rename) so a failed write cannot leave a half file.
+  - [x] Make a missing/empty source (`mcp_config.json` absent) a clear error, not an opaque `open` failure.
+  - [x] Preserve existing behavior: other keys of an existing real `opencode.json` untouched.
 - Done when: new test passes and merge into a not-yet-existing `~/.config/opencode/opencode.json` creates the file with only `mcpServers`.
 
 ---

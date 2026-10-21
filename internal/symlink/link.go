@@ -2,6 +2,7 @@
 package symlink
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -160,7 +161,13 @@ func applyJSONMerge(sourcePattern, targetPattern, key string) error {
 
 	srcData, err := os.ReadFile(src)
 	if err != nil {
-		return fmt.Errorf("reading source JSON: %w", err)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("source JSON file is missing: %s", src)
+		}
+		return fmt.Errorf("reading source JSON %s: %w", src, err)
+	}
+	if len(bytes.TrimSpace(srcData)) == 0 {
+		return fmt.Errorf("source JSON file is empty: %s", src)
 	}
 
 	var parsedSrc any
@@ -173,6 +180,19 @@ func applyJSONMerge(sourcePattern, targetPattern, key string) error {
 		if val, found := srcMap[key]; found {
 			replacement = val
 		}
+	}
+
+	// A symlink at the target would make writes follow it (possibly into a
+	// missing path). Replace it with a real file; this also repairs links left
+	// behind by older mappings.
+	if info, lerr := os.Lstat(dst); lerr == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			if err := os.Remove(dst); err != nil {
+				return fmt.Errorf("removing symlink at %s: %w", dst, err)
+			}
+		}
+	} else if !os.IsNotExist(lerr) {
+		return fmt.Errorf("inspecting target %s: %w", dst, lerr)
 	}
 
 	targetMap := make(map[string]any)
@@ -193,5 +213,34 @@ func applyJSONMerge(sourcePattern, targetPattern, key string) error {
 		return err
 	}
 
-	return os.WriteFile(dst, append(out, '\n'), 0o600)
+	return writeFileAtomic(dst, append(out, '\n'), 0o600)
+}
+
+// writeFileAtomic writes data to a temp file in the target directory and
+// renames it into place, so a failed write never leaves a partial file.
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Chmod(perm); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmpName, path)
 }
