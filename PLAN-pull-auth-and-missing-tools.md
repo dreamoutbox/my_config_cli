@@ -76,12 +76,12 @@ Fix two problems found when running `myconfig pull` on a fresh machine:
 
 ---
 
-### Phase 5: Docs and Verification [STATUS: TODO]
+### Phase 5: Docs and Verification [STATUS: DONE]
 - Goal: Document behavior and verify end to end.
 - Tasks:
-  - [ ] Update `AGENTS.md` (auth fallback, placeholder creation, mapping migration, no symlink over `opencode.json`) and `README.md` (private repo usage, PAT URL warning).
-  - [ ] Reproduce both original scenarios in a scratch `HOME`: wrong env token -> credential prompt; fresh machine pull with no tools installed -> all entries `OK`.
-  - [ ] Run `./lint.sh`, `./test.sh`, `./build.sh`.
+  - [x] Update `AGENTS.md` (auth fallback, placeholder creation, mapping migration, no symlink over `opencode.json`) and `README.md` (private repo usage, PAT URL warning).
+  - [x] Reproduce both original scenarios in a scratch `HOME`: wrong env token -> credential prompt; fresh machine pull with no tools installed -> all entries `OK`.
+  - [x] Run `./lint.sh`, `./test.sh`, `./build.sh`.
 - Done when: all three scripts exit 0 and docs match behavior.
 
 ---

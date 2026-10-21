@@ -6,7 +6,8 @@ CLI tool to backup, restore, and synchronize AI tool configurations across envir
 
 - **Centralized storage**: Stores all shared configurations in `~/.my_config_cli/config`.
 - **Git synchronization**: Push and pull configuration repositories using system `git`.
-- **Automatic symlinking**: Automatically symlinks configs and skills to supported AI tools (Gemini CLI, Pi agent, OpenCode, Claude).
+- **Private repository support**: If ambient credentials are rejected, retry once with an interactive username/password prompt.
+- **Automatic symlinking**: Automatically symlinks configs and skills to supported AI tools (Gemini CLI, Pi agent, OpenCode, Claude), creating placeholders when a tool or source file is missing.
 - **JSON configuration merge**: Merges MCP server definitions into composite configs like `opencode.json` without overwriting unrelated settings.
 - **Health monitoring**: Inspect repository status and symlink health at any time.
 
@@ -72,6 +73,8 @@ Apply all symlinks and JSON merges without pulling from git:
 myconfig link
 ```
 
+If a tool is not installed yet, or a source file is absent from the repository, `link` creates a placeholder in `~/.my_config_cli/config` (`{}` for JSON files, empty otherwise) and still creates the symlink. Placeholder entries are reported as `created`; run `myconfig push` to save them for other machines.
+
 ### 4. Status
 
 Check git status of the configuration store and inspect the health of all symlink targets:
@@ -86,9 +89,25 @@ Status codes for mapping targets:
 - `STALE`: Target is not a symlink, points to an invalid destination, or source file is missing.
 - `MERGED`: Composite JSON target file exists with merged keys.
 
+## Private Repositories & Authentication
+
+`myconfig pull` and `myconfig push` use the system `git` and whatever credentials it normally would (SSH keys, credential helpers, `GITHUB_TOKEN`/`GH_TOKEN`). If git rejects those credentials with a 403/access error, `myconfig` retries once with environment tokens and credential helpers disabled, so git can prompt for a username and password:
+
+```
+Access denied with default credentials; enter credentials for github.com
+Username for 'https://github.com':
+Password for 'https://alice@github.com':
+```
+
+- Credentials typed at the prompt are not stored by `myconfig`.
+- The retry is skipped when there is no interactive terminal (for example in CI). Use a personal access token in `--repo` for those environments.
+- A 404 or `Repository not found` is not retried. GitHub returns 404 for private repositories the current token cannot see, so check both the URL and the token's access.
+
+**PAT URL warning:** a token embedded in `--repo` (for example `https://user:token@github.com/org/repo.git`) is written to `~/.my_config_cli/settings.json` and used as the git remote URL. `myconfig` masks it in its own output (`https://***@github.com/...`), but the token remains on disk. Prefer SSH or a credential helper.
+
 ## Configuration & Mappings
 
-On initial execution, `myconfig` generates `~/.my_config_cli/mapping.json` using embedded defaults. You can customize the source and target paths as needed.
+On initial execution, `myconfig` generates `~/.my_config_cli/mapping.json` using embedded defaults. You can customize the source and target paths as needed. Symlink entries can set `source_kind` to `file` (default) or `dir`; when the source is missing, `link` creates a placeholder of that kind. Existing mappings without the field default to `file` unless the source already exists as a directory.
 
 ### Default Mapping Layout
 
@@ -105,7 +124,6 @@ On initial execution, `myconfig` generates `~/.my_config_cli/mapping.json` using
   - `~/.my_config_cli/config/mcp_config.json` -> `~/.pi/agent/mcp.json`
   - `~/.my_config_cli/config/skills` -> `~/.pi/agent/skills`
 - **OpenCode**:
-  - `~/.my_config_cli/config/.config/opencode/opencode.json` -> `~/.config/opencode/opencode.json`
   - `~/.my_config_cli/config/AGENTS.md` -> `~/.config/opencode/AGENTS.md`
   - `~/.my_config_cli/config/skills` -> `~/.config/opencode/skills`
   - `~/.my_config_cli/config/mcp_config.json` -> merged into `~/.config/opencode/opencode.json` (`mcpServers`)

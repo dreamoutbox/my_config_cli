@@ -69,10 +69,19 @@ All CLI configuration and sync stores live under the user's home directory:
   - Safely skips existing symlinks that already point to the central store.
   - **No auto-push:** Does not run git commit or push; users must inspect status and manually execute `myconfig push`.
 
+### Authentication Fallback
+- Network commands (`pull`, `fetch`, `push`, `ls-remote`) run normally first. If git reports an access/403 error, they retry once interactively with `GH_TOKEN`/`GITHUB_TOKEN` removed, `GIT_ASKPASS`/`SSH_ASKPASS` cleared, and `-c credential.helper=` set (empty resets the helper list). The user is prompted by git for username/password.
+- Credentials are never persisted by myconfig. A user's own credential helper may still offer to store them after the retry; that is outside myconfig.
+- The retry is skipped when stdin is not a TTY (CI). The error then includes a hint to use a personal access token in `--repo`.
+- 404 / `Repository not found` is not treated as an auth error and is never retried. GitHub also returns 404 for private repositories the current token cannot see, so the error mentions both wrong URL and insufficient access.
+- All printed URLs and git error messages pass through `git.MaskURL`, which replaces `https://user:token@host` userinfo with `***@`.
+
 ### Repository Resolution Precedence
 1. Command line flag `--repo <url>` (if passed, automatically persisted to `settings.json`).
 2. Stored `repo_url` in `~/.my_config_cli/settings.json`.
 3. If neither is available, commands return an explicit error requiring `--repo`.
+
+> A PAT embedded in `--repo` is saved to `settings.json` and configured as the git remote URL. Prefer SSH or a credential helper; myconfig masks the token in output but does not remove it from disk.
 
 ---
 
@@ -84,11 +93,14 @@ Mappings support two distinct entry types:
    - Target is replaced with a filesystem symbolic link pointing to the source file or directory.
    - Parent directories are created automatically (`0755`).
    - Existing symlinks or stale files/directories at the target are removed and replaced silently.
+   - If the source is missing, a placeholder is created in the store using the entry's `source_kind` (`file` or `dir`). JSON placeholders contain `{}`; other files are empty. The result is reported as `created`, and the user should run `myconfig push` to save the placeholders.
+   - Mappings without `source_kind` (older user mappings) default to `file`; an existing source directory is left untouched.
 
 2. `json_merge`:
    - **Crucial for OpenCode:** OpenCode stores MCP server configurations inside `~/.config/opencode/opencode.json` rather than a standalone file.
    - `json_merge` parses `mcp_config.json` from the source, extracts or takes the `mcpServers` object, and updates only the `mcpServers` key in `opencode.json` without modifying other configuration fields.
-   - Never replace `opencode.json` with a symlink.
+   - Writes are atomic (temp file + rename). If the target is a symlink, it is removed first so a real file is written and a dangling link is never followed.
+   - Never replace `opencode.json` with a symlink. `config.LoadMapping` drops (and warns about) any `symlink` entry whose target is also a `json_merge` target, persisting the cleaned mapping once. This migrates users seeded before the conflict was removed from `assets/mapping.json`.
 
 Supported tools in default mappings:
 - Gemini CLI (`.gemini/antigravity-cli/settings.json`, `config/config.json`, `GEMINI.md`, `mcp_config.json`, `skills/`)
@@ -118,6 +130,8 @@ Supported tools in default mappings:
 ## 6. Cautions & Pitfalls
 
 - **System Git Required:** The CLI relies on the system `git` binary and the host system's credentials (SSH keys / credential helpers). Do not replace this with a Go git library unless explicitly requested.
-- **Do Not Symlink Composite Configs:** OpenCode requires merging the `mcpServers` JSON key into its monolithic config file. Creating a symlink over `opencode.json` will break user settings.
+- **Auth Retry Scope:** Only `pull`, `fetch`, `push`, and `ls-remote` go through `RunWithAuthRetry`. Never use it for local commands (commit, add, checkout, status): a matching stderr pattern would trigger a credential prompt for a local failure.
+- **Do Not Symlink Composite Configs:** OpenCode requires merging the `mcpServers` JSON key into its monolithic config file. Creating a symlink over `opencode.json` will break user settings; conflicting entries are dropped at load time.
+- **Placeholders Are Real Files:** Missing sources are created in the store, not skipped. `link`/`pull` report them as `created`; remind users to run `myconfig push` so other machines receive the placeholders.
 - **Path Expansion:** When reading or checking paths from `mapping.json`, always route through `pathutil.Expand` before performing filesystem operations.
 - **Embed Limitations:** In Go, `//go:embed` patterns cannot traverse parent directories (`..`). All embedded assets must reside within or under the declaring package directory (hence `assets/assets.go`).
