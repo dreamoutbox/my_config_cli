@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/dreamoutbox/my_config_cli/internal/config"
 	"github.com/dreamoutbox/my_config_cli/internal/pathutil"
@@ -19,6 +20,8 @@ const (
 	ActionLinked   Action = "linked"
 	ActionReplaced Action = "replaced"
 	ActionMerged   Action = "merged"
+	// ActionCreated means a missing source placeholder was created in the store.
+	ActionCreated Action = "created"
 )
 
 // HealthStatus indicates the current health of an entry on disk.
@@ -44,7 +47,7 @@ func Apply(entry config.Entry) Result {
 
 	switch entry.Type {
 	case config.EntryTypeSymlink:
-		act, err := applySymlink(entry.Source, entry.Target)
+		act, err := applySymlink(entry.Source, entry.Target, entry.SourceKind)
 		res.Action = act
 		res.Error = err
 	case config.EntryTypeJSONMerge:
@@ -118,8 +121,10 @@ func CheckHealth(entry config.Entry) (HealthStatus, error) {
 	return HealthOK, nil
 }
 
-// applySymlink removes any existing target and creates a symlink from source to target.
-func applySymlink(sourcePattern, targetPattern string) (Action, error) {
+// applySymlink ensures the source exists (creating a placeholder when the tool
+// or repository lacks it), then points the target at the source. kind selects
+// the placeholder shape; existing sources are never modified.
+func applySymlink(sourcePattern, targetPattern string, kind config.SourceKind) (Action, error) {
 	src, err := pathutil.Expand(sourcePattern)
 	if err != nil {
 		return "", err
@@ -133,9 +138,19 @@ func applySymlink(sourcePattern, targetPattern string) (Action, error) {
 		return "", err
 	}
 
+	created, err := ensureSource(src, kind)
+	if err != nil {
+		return "", err
+	}
+
 	action := ActionLinked
+	if created {
+		action = ActionCreated
+	}
 	if _, err := os.Lstat(dst); err == nil {
-		action = ActionReplaced
+		if !created {
+			action = ActionReplaced
+		}
 		if err := os.RemoveAll(dst); err != nil {
 			return "", err
 		}
@@ -146,6 +161,35 @@ func applySymlink(sourcePattern, targetPattern string) (Action, error) {
 	}
 
 	return action, nil
+}
+
+// ensureSource creates a placeholder at src when it is missing.
+// kind is the mapping's source_kind; an empty value (old mappings) defaults to
+// a file, matching the previous behavior for missing sources. Returns true when
+// a placeholder was created so the caller can report that a push is needed.
+func ensureSource(src string, kind config.SourceKind) (bool, error) {
+	if _, err := os.Stat(src); err == nil {
+		return false, nil
+	} else if !os.IsNotExist(err) {
+		return false, err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		return false, err
+	}
+
+	switch kind {
+	case config.SourceKindDir:
+		return true, os.MkdirAll(src, 0o755)
+	case config.SourceKindFile, "":
+		content := []byte{}
+		if strings.HasSuffix(strings.ToLower(src), ".json") {
+			content = []byte("{}\n")
+		}
+		return true, os.WriteFile(src, content, 0o600)
+	default:
+		return false, fmt.Errorf("unsupported source_kind %q for %s", kind, src)
+	}
 }
 
 // applyJSONMerge updates a specific key in target JSON with the contents from source.

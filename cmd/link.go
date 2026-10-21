@@ -24,7 +24,7 @@ func runLink(cmd *cobra.Command) error {
 	}
 
 	results := symlink.ApplyAll(m)
-	var failed int
+	var failed, created int
 
 	for _, res := range results {
 		if res.Error != nil {
@@ -32,7 +32,15 @@ func runLink(cmd *cobra.Command) error {
 			fmt.Fprintf(cmd.ErrOrStderr(), "FAIL [%s]: %v\n", res.Entry.Target, res.Error)
 			continue
 		}
+		if res.Action == symlink.ActionCreated {
+			created++
+		}
 		fmt.Fprintf(cmd.OutOrStdout(), "%-8s %s -> %s\n", res.Action, res.Entry.Source, res.Entry.Target)
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "\nSummary: %d applied, %d failed\n", len(results)-failed, failed)
+	if created > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "%d source placeholder(s) created in the store; run 'myconfig push' to save them.\n", created)
 	}
 
 	if failed > 0 {

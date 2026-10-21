@@ -65,6 +65,141 @@ func TestApplySymlink(t *testing.T) {
 	}
 }
 
+func TestApplySymlinkCreatesMissingFileSource(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	src := filepath.Join(tmp, ".my_config_cli", "config", ".pi", "agent", "settings.json")
+	dst := filepath.Join(tmp, ".pi", "agent", "settings.json")
+	entry := config.Entry{
+		Source:     src,
+		Target:     dst,
+		Type:       config.EntryTypeSymlink,
+		SourceKind: config.SourceKindFile,
+	}
+
+	res := Apply(entry)
+	if res.Error != nil {
+		t.Fatalf("Apply with missing source: %v", res.Error)
+	}
+	if res.Action != ActionCreated {
+		t.Fatalf("expected ActionCreated, got %v", res.Action)
+	}
+
+	data, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatalf("placeholder not created: %v", err)
+	}
+	if string(data) != "{}\n" {
+		t.Fatalf("expected JSON placeholder, got %q", string(data))
+	}
+
+	linkTarget, err := os.Readlink(dst)
+	if err != nil {
+		t.Fatalf("target is not a symlink: %v", err)
+	}
+	if linkTarget != src {
+		t.Fatalf("symlink points to %q, want %q", linkTarget, src)
+	}
+
+	health, err := CheckHealth(entry)
+	if err != nil {
+		t.Fatalf("CheckHealth: %v", err)
+	}
+	if health != HealthOK {
+		t.Fatalf("expected HealthOK after creating placeholder, got %v", health)
+	}
+
+	// Second run must reuse the source and stay healthy.
+	res = Apply(entry)
+	if res.Error != nil {
+		t.Fatalf("second Apply: %v", res.Error)
+	}
+	if res.Action != ActionReplaced {
+		t.Fatalf("expected ActionReplaced on second run, got %v", res.Action)
+	}
+	if data, err := os.ReadFile(src); err != nil || string(data) != "{}\n" {
+		t.Fatalf("placeholder changed on second run: %q (err=%v)", string(data), err)
+	}
+}
+
+func TestApplySymlinkCreatesMissingDirSource(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	src := filepath.Join(tmp, ".my_config_cli", "config", "skills")
+	dst := filepath.Join(tmp, ".config", "opencode", "skills")
+	entry := config.Entry{
+		Source:     src,
+		Target:     dst,
+		Type:       config.EntryTypeSymlink,
+		SourceKind: config.SourceKindDir,
+	}
+
+	res := Apply(entry)
+	if res.Error != nil {
+		t.Fatalf("Apply with missing dir source: %v", res.Error)
+	}
+	if res.Action != ActionCreated {
+		t.Fatalf("expected ActionCreated, got %v", res.Action)
+	}
+	info, err := os.Stat(src)
+	if err != nil || !info.IsDir() {
+		t.Fatalf("expected placeholder directory, got info=%v err=%v", info, err)
+	}
+	if health, err := CheckHealth(entry); err != nil || health != HealthOK {
+		t.Fatalf("expected HealthOK, got %v (err=%v)", health, err)
+	}
+}
+
+func TestApplySymlinkMissingNonJSONSourceIsEmpty(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	src := filepath.Join(tmp, "store", "AGENTS.md")
+	dst := filepath.Join(tmp, ".pi", "agent", "SYSTEM.md")
+	entry := config.Entry{
+		Source: src,
+		Target: dst,
+		Type:   config.EntryTypeSymlink,
+	}
+
+	res := Apply(entry)
+	if res.Error != nil {
+		t.Fatalf("Apply with missing markdown source: %v", res.Error)
+	}
+	if res.Action != ActionCreated {
+		t.Fatalf("expected ActionCreated, got %v", res.Action)
+	}
+	data, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatalf("placeholder not created: %v", err)
+	}
+	if len(data) != 0 {
+		t.Fatalf("expected empty placeholder, got %q", string(data))
+	}
+}
+
+func TestApplySymlinkRejectsUnknownSourceKind(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	entry := config.Entry{
+		Source:     filepath.Join(tmp, "store", "weird"),
+		Target:     filepath.Join(tmp, "weird"),
+		Type:       config.EntryTypeSymlink,
+		SourceKind: config.SourceKind("socket"),
+	}
+
+	res := Apply(entry)
+	if res.Error == nil || !strings.Contains(res.Error.Error(), "unsupported source_kind") {
+		t.Fatalf("expected unsupported source_kind error, got %v", res.Error)
+	}
+	if _, err := os.Lstat(entry.Target); !os.IsNotExist(err) {
+		t.Fatalf("target should not be created on error")
+	}
+}
+
 func TestApplyJSONMerge(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)

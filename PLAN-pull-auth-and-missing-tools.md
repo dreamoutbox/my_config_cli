@@ -63,15 +63,15 @@ Fix two problems found when running `myconfig pull` on a fresh machine:
 
 ---
 
-### Phase 4: Always Materialize Sources and Target Dirs (tool not installed) [STATUS: TODO]
+### Phase 4: Always Materialize Sources and Target Dirs (tool not installed) [STATUS: DONE]
 - Goal: Link everything even when the tool is not installed, and keep the store complete so `push` reflects reality.
 - Tasks:
-  - [ ] In `applySymlink`, if `src` does not exist: create its parent dir (`0755`) and an empty placeholder (file) or directory, chosen by a new explicit `source_kind` field on `config.Entry` (typed enum `SourceKind`: `file`/`dir`). Set it for every entry in `assets/mapping.json` (`skills` -> `dir`, others -> `file`). Entries without the field (old user mappings) default to `file` unless the source is an existing dir.
-  - [ ] Seed placeholder JSON files with `{}` so tools do not choke on empty JSON; markdown/other files empty.
-  - [ ] Keep target-parent `MkdirAll` (already present) so `~/.config/opencode/`, `~/.pi/agent/` etc. are created without the tool installed.
-  - [ ] Add a distinct `ActionCreated` (enum) reported by `link` when a placeholder was created, so the user knows the store changed and `myconfig push` is needed.
-  - [ ] Make failures non-fatal per entry already works (`ApplyAll`); keep, but print a final summary line.
-  - [ ] Unit tests: missing source file, missing source dir, nested missing parents, idempotent second run, `CheckHealth` returns `OK` after link.
+  - [x] In `applySymlink`, if `src` does not exist: create its parent dir (`0755`) and an empty placeholder (file) or directory, chosen by a new explicit `source_kind` field on `config.Entry` (typed enum `SourceKind`: `file`/`dir`). Set it for every entry in `assets/mapping.json` (`skills` -> `dir`, others -> `file`). Entries without the field (old user mappings) default to `file` unless the source is an existing dir.
+  - [x] Seed placeholder JSON files with `{}` so tools do not choke on empty JSON; markdown/other files empty.
+  - [x] Keep target-parent `MkdirAll` (already present) so `~/.config/opencode/`, `~/.pi/agent/` etc. are created without the tool installed.
+  - [x] Add a distinct `ActionCreated` (enum) reported by `link` when a placeholder was created, so the user knows the store changed and `myconfig push` is needed.
+  - [x] Make failures non-fatal per entry already works (`ApplyAll`); keep, but print a final summary line.
+  - [x] Unit tests: missing source file, missing source dir, nested missing parents, idempotent second run, `CheckHealth` returns `OK` after link.
 - Done when: running `link` in an empty `HOME` with an empty store yields `OK` for every entry in `status`, with the placeholders visible in `git status` of the store.
 
 ---

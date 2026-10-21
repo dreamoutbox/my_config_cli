@@ -21,12 +21,22 @@ const (
 	EntryTypeJSONMerge EntryType = "json_merge"
 )
 
+// SourceKind describes the filesystem shape of a symlink source, used when the
+// source is missing and a placeholder must be created.
+type SourceKind string
+
+const (
+	SourceKindFile SourceKind = "file"
+	SourceKindDir  SourceKind = "dir"
+)
+
 // Entry describes a single source→target relationship.
 type Entry struct {
-	Source  string    `json:"source"`
-	Target  string    `json:"target"`
-	Type    EntryType `json:"type"`
-	JSONKey string    `json:"json_key,omitempty"` // only for json_merge
+	Source     string     `json:"source"`
+	Target     string     `json:"target"`
+	Type       EntryType  `json:"type"`
+	JSONKey    string     `json:"json_key,omitempty"`    // only for json_merge
+	SourceKind SourceKind `json:"source_kind,omitempty"` // only for symlink
 }
 
 // Mapping holds all configured source→target entries.
