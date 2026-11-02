@@ -9,7 +9,83 @@ import (
 	"github.com/dreamoutbox/my_config_cli/assets"
 )
 
-const mappingFile = "mapping.json"
+const (
+	mappingFile       = "mapping.json"
+	customMappingFile = "custom_mapping.json"
+)
+
+// DefaultMappingPath returns the path to the user's default mapping file (~/.my_config_cli/mapping.json).
+//
+// Example usage:
+//   path, err := config.DefaultMappingPath()
+//   if err != nil { ... }
+func DefaultMappingPath() (string, error) {
+	dir, err := BaseDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, mappingFile), nil
+}
+
+// CustomMappingPath returns the path to the git-tracked custom mapping file (~/.my_config_cli/config/custom_mapping.json).
+//
+// Example usage:
+//   path, err := config.CustomMappingPath()
+//   if err != nil { ... }
+func CustomMappingPath() (string, error) {
+	dir, err := StoreDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, customMappingFile), nil
+}
+
+// LoadCustomMapping reads ~/.my_config_cli/config/custom_mapping.json.
+// If the file does not exist, it returns an empty Mapping and nil error.
+//
+// Example usage:
+//   custom, err := config.LoadCustomMapping()
+//   if err != nil { ... }
+func LoadCustomMapping() (Mapping, error) {
+	path, err := CustomMappingPath()
+	if err != nil {
+		return Mapping{}, err
+	}
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return Mapping{}, nil
+	}
+	if err != nil {
+		return Mapping{}, err
+	}
+	var m Mapping
+	if err := json.Unmarshal(data, &m); err != nil {
+		return Mapping{}, fmt.Errorf("parsing custom mapping %s: %w", path, err)
+	}
+	return m, nil
+}
+
+// SaveCustomMapping writes the given Mapping to ~/.my_config_cli/config/custom_mapping.json.
+//
+// Arguments:
+//   - m: Mapping object containing custom entries to serialize and save.
+//
+// Returns:
+//   - error if directory creation, marshaling, or file writing fails.
+//
+// Example usage:
+//   err := config.SaveCustomMapping(customMapping)
+//   if err != nil { ... }
+func SaveCustomMapping(m Mapping) error {
+	path, err := CustomMappingPath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return saveMapping(path, m)
+}
 
 // EntryType classifies how a mapping entry should be applied.
 type EntryType string
@@ -44,10 +120,12 @@ type Mapping struct {
 	Entries []Entry `json:"entries"`
 }
 
-// LoadMapping reads ~/.my_config_cli/mapping.json.
-// If the file does not exist, it writes and returns the embedded default.
+// LoadMapping reads default mappings (~/.my_config_cli/mapping.json) and merges
+// optional custom mappings from the git store (~/.my_config_cli/config/custom_mapping.json).
+// If default mapping.json does not exist, it writes and returns the embedded default.
 // It backfills any newly introduced embedded default entries into an existing mapping,
-// drops symlink entries that collide with a json_merge target, and persists changes if any.
+// merges entries from custom_mapping.json (overriding defaults by Target),
+// drops symlink entries that collide with a json_merge target, and persists default changes if needed.
 //
 // Example usage:
 //   mapping, err := config.LoadMapping()
@@ -55,15 +133,15 @@ type Mapping struct {
 //       log.Fatalf("failed to load mapping: %v", err)
 //   }
 func LoadMapping() (Mapping, error) {
-	dir, err := BaseDir()
+	path, err := DefaultMappingPath()
 	if err != nil {
 		return Mapping{}, err
 	}
-	path := filepath.Join(dir, mappingFile)
 
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		// First run: seed from embedded default.
+		dir := filepath.Dir(path)
 		if mkErr := os.MkdirAll(dir, 0o700); mkErr != nil {
 			return Mapping{}, mkErr
 		}
@@ -99,7 +177,44 @@ func LoadMapping() (Mapping, error) {
 		}
 	}
 
+	custom, err := LoadCustomMapping()
+	if err != nil {
+		return Mapping{}, fmt.Errorf("loading custom mapping: %w", err)
+	}
+	if len(custom.Entries) > 0 {
+		m = mergeMappings(m, custom)
+		dropConflictingSymlinks(&m)
+	}
+
 	return m, nil
+}
+
+// mergeMappings combines default mapping entries with custom mapping entries.
+// Any entry in custom whose Target matches an entry in base overrides the base entry.
+//
+// Arguments:
+//   - base: default Mapping struct.
+//   - custom: custom Mapping struct to merge on top.
+//
+// Returns:
+//   - merged Mapping containing unique target mappings.
+//
+// Example usage:
+//   combined := mergeMappings(defaultMapping, customMapping)
+func mergeMappings(base, custom Mapping) Mapping {
+	customTargets := make(map[string]bool, len(custom.Entries))
+	for _, entry := range custom.Entries {
+		customTargets[entry.Target] = true
+	}
+
+	merged := make([]Entry, 0, len(base.Entries)+len(custom.Entries))
+	for _, entry := range base.Entries {
+		if !customTargets[entry.Target] {
+			merged = append(merged, entry)
+		}
+	}
+	merged = append(merged, custom.Entries...)
+	return Mapping{Entries: merged}
 }
 
 // backfillDefaultEntries appends any entries from the embedded default mapping whose

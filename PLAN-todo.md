@@ -15,14 +15,14 @@ Implementation plan for items in `TODO.md`:
   - [x] Add unit tests in `internal/config/mapping_test.go` verifying `.bashrc` and `.gitconfig` are present in defaults and backfilled into pre-existing `mapping.json` files.
 - Done when: `./lint.sh` and `./test.sh` pass, and `LoadMapping()` returns `.bashrc` and `.gitconfig` entries on both fresh and existing setups.
 
-### Phase 2: Git-Tracked Custom Mapping (`custom_mapping.json`) [STATUS: TODO]
+### Phase 2: Git-Tracked Custom Mapping (`custom_mapping.json`) [STATUS: DONE]
 - Goal: Load and merge optional custom mappings from `~/.my_config_cli/config/custom_mapping.json` so custom file and directory mappings are versioned and synced via `myconfig push` and `myconfig pull`.
 - Tasks:
-  - [ ] Add path helpers `DefaultMappingPath()` (`~/.my_config_cli/mapping.json`) and `CustomMappingPath()` (`~/.my_config_cli/config/custom_mapping.json`) in `internal/config/mapping.go`.
-  - [ ] Implement `LoadCustomMapping()` and `SaveCustomMapping(Mapping)` in `internal/config/mapping.go` (returning empty `Mapping` when `custom_mapping.json` does not exist yet).
-  - [ ] Update `LoadMapping()` to merge entries from `CustomMappingPath()` after default `mapping.json` entries (deduplicating/overriding by `Target` if a custom entry targets the same path, and running `dropConflictingSymlinks` across the combined set).
-  - [ ] Support auto-detecting `source_kind` (`file` vs `dir`) when applying or importing custom entries if `source_kind` is omitted and the target or source already exists on disk.
-  - [ ] Add unit tests in `internal/config/mapping_test.go` and `internal/symlink/link_test.go` covering custom file and directory entries, missing `custom_mapping.json`, and target override behavior.
+  - [x] Add path helpers `DefaultMappingPath()` (`~/.my_config_cli/mapping.json`) and `CustomMappingPath()` (`~/.my_config_cli/config/custom_mapping.json`) in `internal/config/mapping.go`.
+  - [x] Implement `LoadCustomMapping()` and `SaveCustomMapping(Mapping)` in `internal/config/mapping.go` (returning empty `Mapping` when `custom_mapping.json` does not exist yet).
+  - [x] Update `LoadMapping()` to merge entries from `CustomMappingPath()` after default `mapping.json` entries (deduplicating/overriding by `Target` if a custom entry targets the same path, and running `dropConflictingSymlinks` across the combined set).
+  - [x] Support auto-detecting `source_kind` (`file` vs `dir`) when applying or importing custom entries if `source_kind` is omitted and the target or source already exists on disk.
+  - [x] Add unit tests in `internal/config/mapping_test.go` and `internal/symlink/link_test.go` covering custom file and directory entries, missing `custom_mapping.json`, and target override behavior.
 - Done when: `./lint.sh` and `./test.sh` pass, and `link`, `status`, `pull`, and `import --tool all` operate seamlessly across both `mapping.json` and `custom_mapping.json`.
 
 ### Phase 3: `myconfig mapping` CLI Command (`path` and `add`) [STATUS: TODO]

@@ -205,3 +205,106 @@ func TestLoadMappingBackfillsDefaults(t *testing.T) {
 		t.Fatal("~/.gitconfig was not backfilled")
 	}
 }
+
+func TestMappingPathHelpers(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	defPath, err := DefaultMappingPath()
+	if err != nil {
+		t.Fatalf("DefaultMappingPath: %v", err)
+	}
+	wantDef := filepath.Join(tmp, ".my_config_cli", "mapping.json")
+	if defPath != wantDef {
+		t.Fatalf("DefaultMappingPath got %q, want %q", defPath, wantDef)
+	}
+
+	custPath, err := CustomMappingPath()
+	if err != nil {
+		t.Fatalf("CustomMappingPath: %v", err)
+	}
+	wantCust := filepath.Join(tmp, ".my_config_cli", "config", "custom_mapping.json")
+	if custPath != wantCust {
+		t.Fatalf("CustomMappingPath got %q, want %q", custPath, wantCust)
+	}
+}
+
+func TestLoadCustomMappingMissing(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	custom, err := LoadCustomMapping()
+	if err != nil {
+		t.Fatalf("LoadCustomMapping on missing file: %v", err)
+	}
+	if len(custom.Entries) != 0 {
+		t.Fatalf("expected 0 entries for missing custom mapping, got %d", len(custom.Entries))
+	}
+}
+
+func TestCustomMappingSaveAndLoad(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	sample := Mapping{
+		Entries: []Entry{
+			{Source: "~/.my_config_cli/config/.vimrc", Target: "~/.vimrc", Type: EntryTypeSymlink, SourceKind: SourceKindFile},
+			{Source: "~/.my_config_cli/config/.config/nvim", Target: "~/.config/nvim", Type: EntryTypeSymlink, SourceKind: SourceKindDir},
+		},
+	}
+
+	if err := SaveCustomMapping(sample); err != nil {
+		t.Fatalf("SaveCustomMapping: %v", err)
+	}
+
+	loaded, err := LoadCustomMapping()
+	if err != nil {
+		t.Fatalf("LoadCustomMapping: %v", err)
+	}
+	if len(loaded.Entries) != 2 {
+		t.Fatalf("expected 2 custom entries, got %d", len(loaded.Entries))
+	}
+	if loaded.Entries[0].Target != "~/.vimrc" || loaded.Entries[1].Target != "~/.config/nvim" {
+		t.Fatalf("unexpected custom entries: %+v", loaded.Entries)
+	}
+}
+
+func TestLoadMappingMergesCustomMappingAndOverrides(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	custom := Mapping{
+		Entries: []Entry{
+			// Override default .bashrc source
+			{Source: "~/.my_config_cli/config/custom_bashrc", Target: "~/.bashrc", Type: EntryTypeSymlink, SourceKind: SourceKindFile},
+			// Additional custom directory entry
+			{Source: "~/.my_config_cli/config/.config/fish", Target: "~/.config/fish", Type: EntryTypeSymlink, SourceKind: SourceKindDir},
+		},
+	}
+	if err := SaveCustomMapping(custom); err != nil {
+		t.Fatalf("SaveCustomMapping: %v", err)
+	}
+
+	m, err := LoadMapping()
+	if err != nil {
+		t.Fatalf("LoadMapping: %v", err)
+	}
+
+	var foundBashrc Entry
+	var foundFish bool
+	for _, entry := range m.Entries {
+		if entry.Target == "~/.bashrc" {
+			foundBashrc = entry
+		}
+		if entry.Target == "~/.config/fish" {
+			foundFish = true
+		}
+	}
+
+	if foundBashrc.Source != "~/.my_config_cli/config/custom_bashrc" {
+		t.Fatalf("expected custom .bashrc override %q, got %q", "~/.my_config_cli/config/custom_bashrc", foundBashrc.Source)
+	}
+	if !foundFish {
+		t.Fatal("expected custom fish entry in merged mapping")
+	}
+}

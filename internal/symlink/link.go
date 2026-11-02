@@ -123,7 +123,20 @@ func CheckHealth(entry config.Entry) (HealthStatus, error) {
 
 // applySymlink ensures the source exists (creating a placeholder when the tool
 // or repository lacks it), then points the target at the source. kind selects
-// the placeholder shape; existing sources are never modified.
+// the placeholder shape; existing sources are never modified. If kind is unspecified,
+// it auto-detects dir if target or source is currently a directory on disk.
+//
+// Arguments:
+//   - sourcePattern: path pattern for central config source.
+//   - targetPattern: path pattern for target symlink.
+//   - kind: SourceKind hint (file or dir).
+//
+// Returns:
+//   - Action performed (ActionLinked, ActionReplaced, ActionCreated).
+//   - error if operation fails.
+//
+// Example usage:
+//   action, err := applySymlink("~/.my_config_cli/config/.bashrc", "~/.bashrc", config.SourceKindFile)
 func applySymlink(sourcePattern, targetPattern string, kind config.SourceKind) (Action, error) {
 	src, err := pathutil.Expand(sourcePattern)
 	if err != nil {
@@ -132,6 +145,14 @@ func applySymlink(sourcePattern, targetPattern string, kind config.SourceKind) (
 	dst, err := pathutil.Expand(targetPattern)
 	if err != nil {
 		return "", err
+	}
+
+	if kind == "" {
+		if dstStat, err := os.Stat(dst); err == nil && dstStat.IsDir() {
+			kind = config.SourceKindDir
+		} else if srcStat, err := os.Stat(src); err == nil && srcStat.IsDir() {
+			kind = config.SourceKindDir
+		}
 	}
 
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {

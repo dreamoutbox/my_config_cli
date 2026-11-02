@@ -349,3 +349,35 @@ func TestApplyJSONMergeSourceErrors(t *testing.T) {
 		t.Fatalf("expected empty-source error, got %v", res.Error)
 	}
 }
+
+func TestApplySymlinkAutoDetectsDirectory(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	// Target already exists as a directory
+	dstDir := filepath.Join(tmp, ".config", "custom_dir")
+	if err := os.MkdirAll(dstDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	srcDir := filepath.Join(tmp, "store", "custom_dir")
+	entry := config.Entry{
+		Source: srcDir,
+		Target: dstDir,
+		Type:   config.EntryTypeSymlink,
+		// SourceKind intentionally omitted
+	}
+
+	res := Apply(entry)
+	if res.Error != nil {
+		t.Fatalf("Apply with auto-detect dir: %v", res.Error)
+	}
+	if res.Action != ActionCreated {
+		t.Fatalf("expected ActionCreated, got %v", res.Action)
+	}
+
+	info, err := os.Stat(srcDir)
+	if err != nil || !info.IsDir() {
+		t.Fatalf("expected created source placeholder to be directory, info=%v err=%v", info, err)
+	}
+}
