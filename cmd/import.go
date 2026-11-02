@@ -25,7 +25,7 @@ var importCmd = &cobra.Command{
 // runImport reads mapping.json in reverse and copies configuration files into the config store.
 func runImport(cmd *cobra.Command) error {
 	if strings.TrimSpace(importToolFlag) == "" {
-		return fmt.Errorf("--tool is required (e.g. --tool antigravity or --tool gemini)")
+		return fmt.Errorf("--tool is required (e.g. --tool git, --tool bashrc, --tool antigravity, --tool all)")
 	}
 
 	m, err := config.LoadMapping()
@@ -79,7 +79,7 @@ func runImport(cmd *cobra.Command) error {
 }
 
 func init() {
-	importCmd.Flags().StringVar(&importToolFlag, "tool", "", "Tool configuration to import (e.g. antigravity, gemini, all)")
+	importCmd.Flags().StringVar(&importToolFlag, "tool", "", "Tool configuration to import (e.g. git, bashrc, antigravity, gemini, all)")
 	_ = importCmd.MarkFlagRequired("tool")
 	importCmd.Flags().BoolVar(&importDryRunFlag, "dry-run", false, "Preview import actions without writing to disk")
 	rootCmd.AddCommand(importCmd)

@@ -6,3 +6,4 @@
 
 - [x] custom mapping save in git repo. add show mapping path command. support both file and directory.
 
+- [x] make `myconfig import --tool` support `git` and `bashrc`

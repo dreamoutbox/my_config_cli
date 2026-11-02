@@ -28,14 +28,38 @@ type Tool string
 const (
 	ToolAntigravity Tool = "antigravity"
 	ToolGemini      Tool = "gemini"
+	ToolGit         Tool = "git"
+	ToolBash        Tool = "bash"
+	ToolClaude      Tool = "claude"
+	ToolPi          Tool = "pi"
+	ToolOpenCode    Tool = "opencode"
 	ToolAll         Tool = "all"
 )
 
 // NormalizeTool maps tool aliases to canonical tool identifiers.
+//
+// Arguments:
+//   - tool: user-provided tool identifier or alias.
+//
+// Returns:
+//   - canonical Tool enum value.
+//
+// Example usage:
+//   canonical := importer.NormalizeTool("bashrc") // returns ToolBash
 func NormalizeTool(tool Tool) Tool {
 	switch strings.ToLower(string(tool)) {
 	case "antigravity", "gemini":
 		return ToolAntigravity
+	case "bash", "bashrc":
+		return ToolBash
+	case "git", "gitconfig":
+		return ToolGit
+	case "claude":
+		return ToolClaude
+	case "pi":
+		return ToolPi
+	case "opencode":
+		return ToolOpenCode
 	default:
 		return Tool(strings.ToLower(string(tool)))
 	}
@@ -49,16 +73,51 @@ type Result struct {
 	Error  error
 }
 
-// DetectTool categorizes a mapping entry by target application.
+// DetectTool categorizes a mapping entry by target application or configuration.
+//
+// Arguments:
+//   - entry: config.Entry to inspect based on its Target path.
+//
+// Returns:
+//   - Tool enum identifying the corresponding application or subsystem.
+//
+// Example usage:
+//   tool := importer.DetectTool(entry)
 func DetectTool(entry config.Entry) Tool {
-	if strings.HasPrefix(entry.Target, "~/.gemini/") {
+	target := entry.Target
+	if strings.HasPrefix(target, "~/.gemini/") {
 		return ToolAntigravity
+	}
+	if strings.HasPrefix(target, "~/.claude/") {
+		return ToolClaude
+	}
+	if strings.HasPrefix(target, "~/.pi/") {
+		return ToolPi
+	}
+	if strings.HasPrefix(target, "~/.config/opencode/") {
+		return ToolOpenCode
+	}
+	if target == "~/.bashrc" || strings.HasSuffix(target, "/.bashrc") {
+		return ToolBash
+	}
+	if target == "~/.gitconfig" || strings.HasSuffix(target, "/.gitconfig") {
+		return ToolGit
 	}
 	return Tool("unknown")
 }
 
 // FilterEntries selects entries matching the requested tool.
 // ToolAll returns all entries unmodified.
+//
+// Arguments:
+//   - entries: slice of config.Entry to filter.
+//   - tool: Tool filter criterion.
+//
+// Returns:
+//   - slice of config.Entry matching the specified tool.
+//
+// Example usage:
+//   gitEntries := importer.FilterEntries(allEntries, importer.ToolGit)
 func FilterEntries(entries []config.Entry, tool Tool) []config.Entry {
 	normalized := NormalizeTool(tool)
 	if normalized == ToolAll || normalized == "" {

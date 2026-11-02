@@ -71,7 +71,7 @@ All CLI configuration and sync stores live under the user's home directory:
   - Supports `--from-commit <hash/ref>`: fetches remote objects and checks out a specific commit hash, tag, or branch instead of latest HEAD before applying symlinks.
   - Subsequent regular `myconfig pull` calls safely re-attach detached HEAD back to the repository's tracking/default branch before rebasing latest changes.
 - `myconfig import`: Reverse-syncs configurations from system targets into the central store directory (`~/.my_config_cli/config/`).
-  - Requires `--tool <tool>` (`antigravity` and `gemini` are aliases; no default).
+  - Requires `--tool <tool>` (supported tools: `git`, `bashrc` / `bash`, `antigravity` / `gemini`, `claude`, `pi`, `opencode`, `all`).
   - Supports `--dry-run` to preview actions.
   - Safely skips existing symlinks that already point to the central store.
   - **No auto-push:** Does not run git commit or push; users must inspect status and manually execute `myconfig push`.

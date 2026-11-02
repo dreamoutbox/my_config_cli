@@ -14,13 +14,38 @@ func TestDetectToolAndFilter(t *testing.T) {
 		{Target: "~/.gemini/config/skills"},
 		{Target: "~/.claude/CLAUDE.md"},
 		{Target: "~/.pi/agent/SYSTEM.md"},
+		{Target: "~/.bashrc"},
+		{Target: "~/.gitconfig"},
+		{Target: "~/.other/unknown.conf"},
 	}
 
 	if DetectTool(entries[0]) != ToolAntigravity {
 		t.Fatalf("expected ToolAntigravity, got %v", DetectTool(entries[0]))
 	}
-	if DetectTool(entries[2]) != Tool("unknown") {
-		t.Fatalf("expected unknown, got %v", DetectTool(entries[2]))
+	if DetectTool(entries[2]) != ToolClaude {
+		t.Fatalf("expected ToolClaude, got %v", DetectTool(entries[2]))
+	}
+	if DetectTool(entries[3]) != ToolPi {
+		t.Fatalf("expected ToolPi, got %v", DetectTool(entries[3]))
+	}
+	if DetectTool(entries[4]) != ToolBash {
+		t.Fatalf("expected ToolBash, got %v", DetectTool(entries[4]))
+	}
+	if DetectTool(entries[5]) != ToolGit {
+		t.Fatalf("expected ToolGit, got %v", DetectTool(entries[5]))
+	}
+	if DetectTool(entries[6]) != Tool("unknown") {
+		t.Fatalf("expected unknown, got %v", DetectTool(entries[6]))
+	}
+
+	filteredGit := FilterEntries(entries, Tool("git"))
+	if len(filteredGit) != 1 || filteredGit[0].Target != "~/.gitconfig" {
+		t.Fatalf("expected 1 git entry, got: %+v", filteredGit)
+	}
+
+	filteredBashrc := FilterEntries(entries, Tool("bashrc"))
+	if len(filteredBashrc) != 1 || filteredBashrc[0].Target != "~/.bashrc" {
+		t.Fatalf("expected 1 bashrc entry, got: %+v", filteredBashrc)
 	}
 
 	filteredAntigravity := FilterEntries(entries, ToolAntigravity)

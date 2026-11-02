@@ -102,3 +102,52 @@ func TestRunImportUnknownTool(t *testing.T) {
 		t.Fatalf("expected 'No entries found', got: %s", outBuf.String())
 	}
 }
+
+func TestRunImportGitAndBashrc(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	// Create dummy ~/.bashrc and ~/.gitconfig
+	bashrcPath := filepath.Join(tmp, ".bashrc")
+	if err := os.WriteFile(bashrcPath, []byte("alias ll='ls -la'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitconfigPath := filepath.Join(tmp, ".gitconfig")
+	if err := os.WriteFile(gitconfigPath, []byte("[user]\nname = Test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var outBuf bytes.Buffer
+	importCmd.SetOut(&outBuf)
+	importCmd.SetErr(&outBuf)
+	importDryRunFlag = false
+
+	// Test --tool bashrc
+	importToolFlag = "bashrc"
+	if err := runImport(importCmd); err != nil {
+		t.Fatalf("runImport --tool bashrc: %v", err)
+	}
+	destBashrc := filepath.Join(tmp, ".my_config_cli", "config", ".bashrc")
+	data, err := os.ReadFile(destBashrc)
+	if err != nil {
+		t.Fatalf("reading imported .bashrc: %v", err)
+	}
+	if string(data) != "alias ll='ls -la'\n" {
+		t.Fatalf("unexpected content in imported .bashrc: %s", string(data))
+	}
+
+	// Test --tool git
+	outBuf.Reset()
+	importToolFlag = "git"
+	if err := runImport(importCmd); err != nil {
+		t.Fatalf("runImport --tool git: %v", err)
+	}
+	destGitconfig := filepath.Join(tmp, ".my_config_cli", "config", ".gitconfig")
+	data, err = os.ReadFile(destGitconfig)
+	if err != nil {
+		t.Fatalf("reading imported .gitconfig: %v", err)
+	}
+	if string(data) != "[user]\nname = Test\n" {
+		t.Fatalf("unexpected content in imported .gitconfig: %s", string(data))
+	}
+}
