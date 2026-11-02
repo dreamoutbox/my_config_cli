@@ -61,7 +61,9 @@ All CLI configuration and sync stores live under the user's home directory:
 ### Command Aliases and Operations
 - `myconfig mapping`: Manage and inspect mappings. Default prints paths for `mapping.json` and `custom_mapping.json`.
   - `myconfig mapping path`: Supports `--default` and `--custom` flags to output individual paths.
+  - `myconfig mapping get` (aliases: `list`, `ls`): Lists all custom entries defined in `custom_mapping.json`.
   - `myconfig mapping add <target>`: Adds a custom file or directory entry to `custom_mapping.json`. Automatically infers `file` or `dir`, copies existing target files into the config store if absent, and derives store paths under `~/.my_config_cli/config/`.
+  - `myconfig mapping delete <target>` (aliases: `remove`, `rm`): Deletes a custom mapping entry from `custom_mapping.json`.
 - `myconfig push`: Aliased as `myconfig save` and `myconfig backup`. Commits and pushes the central store to git.
   - Supports `--auto-rebase` (default `true`): pulls and rebases remote changes (e.g. remote README or commits from another device) before pushing. Aborts cleanly if conflicts arise.
   - Supports `--force` / `-f`: force pushes to remote repository to overwrite remote changes if needed.

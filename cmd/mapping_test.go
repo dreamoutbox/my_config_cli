@@ -190,3 +190,108 @@ func TestMappingAddCmdFlagsAndMissingTarget(t *testing.T) {
 	mappingAddSource = ""
 	mappingAddKind = ""
 }
+
+func TestMappingGetCmd(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	var buf bytes.Buffer
+	mappingGetCmd.SetOut(&buf)
+	mappingGetCmd.SetErr(&buf)
+
+	// 1. When empty
+	if err := runMappingGet(mappingGetCmd); err != nil {
+		t.Fatalf("runMappingGet on empty: %v", err)
+	}
+	if !strings.Contains(buf.String(), "No custom mappings configured") {
+		t.Fatalf("expected empty message, got: %s", buf.String())
+	}
+
+	// 2. With entries
+	sample := config.Mapping{
+		Entries: []config.Entry{
+			{Source: "~/.my_config_cli/config/.vimrc", Target: "~/.vimrc", Type: config.EntryTypeSymlink, SourceKind: config.SourceKindFile},
+			{Source: "~/.my_config_cli/config/.config/fish", Target: "~/.config/fish", Type: config.EntryTypeSymlink, SourceKind: config.SourceKindDir},
+		},
+	}
+	if err := config.SaveCustomMapping(sample); err != nil {
+		t.Fatal(err)
+	}
+
+	buf.Reset()
+	if err := runMappingGet(mappingGetCmd); err != nil {
+		t.Fatalf("runMappingGet with entries: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "~/.vimrc") || !strings.Contains(out, "~/.config/fish") {
+		t.Fatalf("expected entries in output, got: %s", out)
+	}
+	if !strings.Contains(out, "[file]") || !strings.Contains(out, "[dir ]") {
+		t.Fatalf("expected kinds in output, got: %s", out)
+	}
+}
+
+func TestMappingDeleteCmd(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	sample := config.Mapping{
+		Entries: []config.Entry{
+			{Source: "~/.my_config_cli/config/.vimrc", Target: "~/.vimrc", Type: config.EntryTypeSymlink, SourceKind: config.SourceKindFile},
+			{Source: "~/.my_config_cli/config/.tmux.conf", Target: "~/.tmux.conf", Type: config.EntryTypeSymlink, SourceKind: config.SourceKindFile},
+		},
+	}
+	if err := config.SaveCustomMapping(sample); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	mappingDeleteCmd.SetOut(&buf)
+	mappingDeleteCmd.SetErr(&buf)
+	mappingDeleteTarget = ""
+
+	// 1. Missing target
+	err := runMappingDelete(mappingDeleteCmd, nil)
+	if err == nil || !strings.Contains(err.Error(), "target path is required") {
+		t.Fatalf("expected missing target error, got: %v", err)
+	}
+
+	// 2. Target not found
+	err = runMappingDelete(mappingDeleteCmd, []string{"~/.nonexistent"})
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %v", err)
+	}
+
+	// 3. Successful delete with positional argument
+	buf.Reset()
+	if err := runMappingDelete(mappingDeleteCmd, []string{"~/.vimrc"}); err != nil {
+		t.Fatalf("runMappingDelete: %v", err)
+	}
+	if !strings.Contains(buf.String(), "Deleted custom mapping: ~/.vimrc") {
+		t.Fatalf("unexpected delete output: %s", buf.String())
+	}
+
+	custom, err := config.LoadCustomMapping()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(custom.Entries) != 1 || custom.Entries[0].Target != "~/.tmux.conf" {
+		t.Fatalf("expected only ~/.tmux.conf to remain, got: %+v", custom.Entries)
+	}
+
+	// 4. Successful delete with --target flag
+	buf.Reset()
+	mappingDeleteTarget = "~/.tmux.conf"
+	if err := runMappingDelete(mappingDeleteCmd, nil); err != nil {
+		t.Fatalf("runMappingDelete with flag: %v", err)
+	}
+	mappingDeleteTarget = ""
+
+	custom, err = config.LoadCustomMapping()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(custom.Entries) != 0 {
+		t.Fatalf("expected 0 entries after deleting all, got: %d", len(custom.Entries))
+	}
+}

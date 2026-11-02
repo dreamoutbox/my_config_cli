@@ -19,6 +19,8 @@ var (
 	mappingAddTarget string
 	mappingAddSource string
 	mappingAddKind   string
+
+	mappingDeleteTarget string
 )
 
 var mappingCmd = &cobra.Command{
@@ -34,6 +36,25 @@ var mappingPathCmd = &cobra.Command{
 	Short: "Print mapping file paths",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runMappingPath(cmd)
+	},
+}
+
+var mappingGetCmd = &cobra.Command{
+	Use:     "get",
+	Aliases: []string{"list", "ls"},
+	Short:   "List all custom mappings",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runMappingGet(cmd)
+	},
+}
+
+var mappingDeleteCmd = &cobra.Command{
+	Use:     "delete <target>",
+	Aliases: []string{"remove", "rm"},
+	Short:   "Delete a custom mapping",
+	Args:    cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runMappingDelete(cmd, args)
 	},
 }
 
@@ -55,7 +76,8 @@ var mappingAddCmd = &cobra.Command{
 //   - error if resolving paths fails.
 //
 // Example usage:
-//   err := runMappingPath(cmd)
+//
+//	err := runMappingPath(cmd)
 func runMappingPath(cmd *cobra.Command) error {
 	defPath, err := config.DefaultMappingPath()
 	if err != nil {
@@ -91,7 +113,8 @@ func runMappingPath(cmd *cobra.Command) error {
 //   - error if path resolution, source kind check, or saving fails.
 //
 // Example usage:
-//   err := runMappingAdd(cmd, []string{"~/.vimrc"})
+//
+//	err := runMappingAdd(cmd, []string{"~/.vimrc"})
 func runMappingAdd(cmd *cobra.Command, args []string) error {
 	rawTarget := mappingAddTarget
 	if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
@@ -180,7 +203,8 @@ func runMappingAdd(cmd *cobra.Command, args []string) error {
 //   - canonical source pattern in central store (e.g. "~/.my_config_cli/config/.bashrc").
 //
 // Example usage:
-//   source := deriveStoreSource("~/.config/fish")
+//
+//	source := deriveStoreSource("~/.config/fish")
 func deriveStoreSource(target string) string {
 	clean := filepath.Clean(target)
 	if strings.HasPrefix(clean, "~/") {
@@ -201,7 +225,8 @@ func deriveStoreSource(target string) string {
 //   - error if user-provided flag is invalid.
 //
 // Example usage:
-//   kind, err := resolveSourceKind("/home/user/.bashrc", "file")
+//
+//	kind, err := resolveSourceKind("/home/user/.bashrc", "file")
 func resolveSourceKind(target string, kindFlag string) (config.SourceKind, error) {
 	switch strings.ToLower(strings.TrimSpace(kindFlag)) {
 	case string(config.SourceKindDir):
@@ -228,7 +253,8 @@ func resolveSourceKind(target string, kindFlag string) (config.SourceKind, error
 //   - true if an existing entry was replaced, false if a new entry was appended.
 //
 // Example usage:
-//   updated := upsertCustomEntry(&custom, entry)
+//
+//	updated := upsertCustomEntry(&custom, entry)
 func upsertCustomEntry(custom *config.Mapping, newEntry config.Entry) bool {
 	for i, entry := range custom.Entries {
 		if entry.Target == newEntry.Target {
@@ -238,6 +264,93 @@ func upsertCustomEntry(custom *config.Mapping, newEntry config.Entry) bool {
 	}
 	custom.Entries = append(custom.Entries, newEntry)
 	return false
+}
+
+// runMappingGet outputs all entries configured in custom_mapping.json.
+//
+// Arguments:
+//   - cmd: Cobra command context providing output writer.
+//
+// Returns:
+//   - error if loading custom mapping fails.
+//
+// Example usage:
+//   err := runMappingGet(cmd)
+func runMappingGet(cmd *cobra.Command) error {
+	custom, err := config.LoadCustomMapping()
+	if err != nil {
+		return fmt.Errorf("loading custom mapping: %w", err)
+	}
+
+	if len(custom.Entries) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "No custom mappings configured.")
+		return nil
+	}
+
+	for _, entry := range custom.Entries {
+		kind := entry.SourceKind
+		if kind == "" {
+			kind = config.SourceKindFile
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "[%-4s] %s -> %s\n", kind, entry.Target, entry.Source)
+	}
+	return nil
+}
+
+// runMappingDelete removes a custom entry by target path from custom_mapping.json.
+//
+// Arguments:
+//   - cmd: Cobra command context providing output writer and flags.
+//   - args: command line arguments optionally containing positional target path.
+//
+// Returns:
+//   - error if target is missing, not found in custom mapping, or saving fails.
+//
+// Example usage:
+//   err := runMappingDelete(cmd, []string{"~/.vimrc"})
+func runMappingDelete(cmd *cobra.Command, args []string) error {
+	rawTarget := mappingDeleteTarget
+	if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
+		rawTarget = args[0]
+	}
+	if strings.TrimSpace(rawTarget) == "" {
+		return fmt.Errorf("target path is required (e.g. 'myconfig mapping delete ~/.bashrc' or '--target ~/.bashrc')")
+	}
+
+	portableTarget, err := pathutil.Collapse(rawTarget)
+	if err != nil {
+		return fmt.Errorf("resolving target path %q: %w", rawTarget, err)
+	}
+	expandedTarget, _ := pathutil.Expand(portableTarget)
+
+	custom, err := config.LoadCustomMapping()
+	if err != nil {
+		return fmt.Errorf("loading custom mapping: %w", err)
+	}
+
+	foundIndex := -1
+	for i, entry := range custom.Entries {
+		entryExpanded, _ := pathutil.Expand(entry.Target)
+		if entry.Target == portableTarget || (expandedTarget != "" && entryExpanded == expandedTarget) {
+			foundIndex = i
+			break
+		}
+	}
+
+	if foundIndex == -1 {
+		return fmt.Errorf("custom mapping for target %q not found", portableTarget)
+	}
+
+	removed := custom.Entries[foundIndex]
+	custom.Entries = append(custom.Entries[:foundIndex], custom.Entries[foundIndex+1:]...)
+
+	if err := config.SaveCustomMapping(custom); err != nil {
+		return fmt.Errorf("saving custom mapping: %w", err)
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "Deleted custom mapping: %s -> %s\n", removed.Target, removed.Source)
+	fmt.Fprintln(cmd.OutOrStdout(), "Run 'myconfig push' to sync changes to remote repository.")
+	return nil
 }
 
 func init() {
@@ -251,7 +364,11 @@ func init() {
 	mappingAddCmd.Flags().StringVar(&mappingAddSource, "source", "", "Source path inside the central store")
 	mappingAddCmd.Flags().StringVar(&mappingAddKind, "kind", "", "Entry kind: file or dir (auto-detected if omitted)")
 
+	mappingDeleteCmd.Flags().StringVar(&mappingDeleteTarget, "target", "", "Target destination path to remove")
+
 	mappingCmd.AddCommand(mappingPathCmd)
+	mappingCmd.AddCommand(mappingGetCmd)
 	mappingCmd.AddCommand(mappingAddCmd)
+	mappingCmd.AddCommand(mappingDeleteCmd)
 	rootCmd.AddCommand(mappingCmd)
 }

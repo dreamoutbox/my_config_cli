@@ -99,10 +99,18 @@ myconfig mapping
 # or
 myconfig mapping path
 
+# List all custom mappings:
+myconfig mapping get
+# (aliases: list, ls)
+
 # Add custom mappings (automatically copied to config store and tracked in git):
 myconfig mapping add ~/.vimrc
 myconfig mapping add ~/.config/fish
 myconfig mapping add ~/.tmux.conf --kind file
+
+# Delete a custom mapping:
+myconfig mapping delete ~/.vimrc
+# (aliases: remove, rm)
 ```
 
 Custom mappings are saved to `~/.my_config_cli/config/custom_mapping.json` inside the git repository and merged alongside default mappings. Run `myconfig link` to apply symlinks and `myconfig push` to back them up to git.
