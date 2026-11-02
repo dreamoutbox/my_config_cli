@@ -8,7 +8,7 @@ import (
 var repoFlag string
 
 // Version is the current application version.
-var Version = "0.1.3"
+var Version = "0.1.4"
 
 var rootCmd = &cobra.Command{
 	Use:     "myconfig",
