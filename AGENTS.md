@@ -26,6 +26,7 @@ Context, conventions, architecture, and cautions for AI coding agents working on
 ├── cmd/
 │   ├── root.go            # Root command and persistent flags (--repo)
 │   ├── repo.go            # Repository URL resolution and settings persistence
+│   ├── mapping.go         # 'myconfig mapping' (path, add) commands
 │   ├── link.go            # 'myconfig link' command
 │   ├── import.go          # 'myconfig import' command (reverse sync)
 │   ├── push.go            # 'myconfig push' (aliases: save, backup)
@@ -54,9 +55,13 @@ Context, conventions, architecture, and cautions for AI coding agents working on
 All CLI configuration and sync stores live under the user's home directory:
 - `~/.my_config_cli/settings.json`: Stores user settings such as `repo_url`.
 - `~/.my_config_cli/mapping.json`: Stores mapping relationships. Seeded from embedded `assets/mapping.json` on first run if missing.
+- `~/.my_config_cli/config/custom_mapping.json`: Git-tracked custom mappings loaded and merged on top of `mapping.json`.
 - `~/.my_config_cli/config/`: Central directory tracked by git containing the canonical configuration files and directories.
 
 ### Command Aliases and Operations
+- `myconfig mapping`: Manage and inspect mappings. Default prints paths for `mapping.json` and `custom_mapping.json`.
+  - `myconfig mapping path`: Supports `--default` and `--custom` flags to output individual paths.
+  - `myconfig mapping add <target>`: Adds a custom file or directory entry to `custom_mapping.json`. Automatically infers `file` or `dir`, copies existing target files into the config store if absent, and derives store paths under `~/.my_config_cli/config/`.
 - `myconfig push`: Aliased as `myconfig save` and `myconfig backup`. Commits and pushes the central store to git.
   - Supports `--auto-rebase` (default `true`): pulls and rebases remote changes (e.g. remote README or commits from another device) before pushing. Aborts cleanly if conflicts arise.
   - Supports `--force` / `-f`: force pushes to remote repository to overwrite remote changes if needed.
@@ -107,6 +112,7 @@ Supported tools in default mappings:
 - Pi Agent (`.pi/agent/settings.json`, `SYSTEM.md`, `mcp.json`, `skills/`)
 - OpenCode (`.config/opencode/opencode.json`, `AGENTS.md`, `skills/`, MCP merge)
 - Claude (`.claude/config.json`, `CLAUDE.md`, `mcp.json`, `skills/`)
+- Shell & Git (`~/.bashrc`, `~/.gitconfig`)
 
 ---
 

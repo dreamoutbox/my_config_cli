@@ -25,16 +25,16 @@ Implementation plan for items in `TODO.md`:
   - [x] Add unit tests in `internal/config/mapping_test.go` and `internal/symlink/link_test.go` covering custom file and directory entries, missing `custom_mapping.json`, and target override behavior.
 - Done when: `./lint.sh` and `./test.sh` pass, and `link`, `status`, `pull`, and `import --tool all` operate seamlessly across both `mapping.json` and `custom_mapping.json`.
 
-### Phase 3: `myconfig mapping` CLI Command (`path` and `add`) [STATUS: TODO]
+### Phase 3: `myconfig mapping` CLI Command (`path` and `add`) [STATUS: DONE]
 - Goal: Provide CLI commands to display mapping paths and add custom file or directory mappings into the git-tracked `custom_mapping.json`.
 - Tasks:
-  - [ ] Create `cmd/mapping.go` with `myconfig mapping` (default action prints both default and custom mapping paths) and subcommand `myconfig mapping path`.
-  - [ ] Add `myconfig mapping add <target>` (or `--target` / `--source` / `--kind file|dir`) that:
+  - [x] Create `cmd/mapping.go` with `myconfig mapping` (default action prints both default and custom mapping paths) and subcommand `myconfig mapping path`.
+  - [x] Add `myconfig mapping add <target>` (or `--target` / `--source` / `--kind file|dir`) that:
     - Infers `source_kind` (`file` or `dir`) from the existing filesystem path (or uses `--kind` when the path does not exist yet).
     - Derives the store source path under `~/.my_config_cli/config/` (preserving home-relative path structure, e.g. `~/.vimrc` -> `~/.my_config_cli/config/.vimrc`, `~/.config/nvim` -> `~/.my_config_cli/config/.config/nvim`) unless `--source` is explicitly provided.
     - If the target currently exists as a regular file or directory and the store source does not exist yet, copies the target into the store so data is preserved before linking.
     - Appends or updates the entry in `~/.my_config_cli/config/custom_mapping.json`.
-  - [ ] Add unit tests for `cmd/mapping.go` and update `README.md`, `AGENTS.md`, and `TODO.md` to document the new mappings and commands.
+  - [x] Add unit tests for `cmd/mapping.go` and update `README.md`, `AGENTS.md`, and `TODO.md` to document the new mappings and commands.
 - Done when: `./lint.sh`, `./test.sh`, and `./build.sh` succeed, `myconfig mapping` outputs the mapping file paths, and `myconfig mapping add` supports both files and directories.
 
 ---

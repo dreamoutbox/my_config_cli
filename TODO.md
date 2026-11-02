@@ -1,7 +1,8 @@
 # TODO
 
-- [ ] save .bashrc
+- [x] save .bashrc
 
-- [ ] save .gitconfig
+- [x] save .gitconfig
 
-- [ ] custom mapping save in git repo. add show mapping path command. support both file and directory.
+- [x] custom mapping save in git repo. add show mapping path command. support both file and directory.
+

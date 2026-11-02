@@ -89,6 +89,24 @@ Status codes for mapping targets:
 - `STALE`: Target is not a symlink, points to an invalid destination, or source file is missing.
 - `MERGED`: Composite JSON target file exists with merged keys.
 
+### 5. Custom Mappings
+
+View mapping paths and register custom file or directory mappings:
+
+```bash
+# Print mapping file paths:
+myconfig mapping
+# or
+myconfig mapping path
+
+# Add custom mappings (automatically copied to config store and tracked in git):
+myconfig mapping add ~/.vimrc
+myconfig mapping add ~/.config/fish
+myconfig mapping add ~/.tmux.conf --kind file
+```
+
+Custom mappings are saved to `~/.my_config_cli/config/custom_mapping.json` inside the git repository and merged alongside default mappings. Run `myconfig link` to apply symlinks and `myconfig push` to back them up to git.
+
 ## Private Repositories & Authentication
 
 `myconfig pull` and `myconfig push` use the system `git` and whatever credentials it normally would (SSH keys, credential helpers, `GITHUB_TOKEN`/`GH_TOKEN`). If git rejects those credentials with a 403/access error, `myconfig` retries once with environment tokens and credential helpers disabled, so git can prompt for a username and password:
@@ -132,3 +150,6 @@ On initial execution, `myconfig` generates `~/.my_config_cli/mapping.json` using
   - `~/.my_config_cli/config/AGENTS.md` -> `~/.claude/CLAUDE.md`
   - `~/.my_config_cli/config/mcp_config.json` -> `~/.claude/mcp.json`
   - `~/.my_config_cli/config/skills` -> `~/.claude/skills`
+- **Shell & Git**:
+  - `~/.my_config_cli/config/.bashrc` -> `~/.bashrc`
+  - `~/.my_config_cli/config/.gitconfig` -> `~/.gitconfig`
