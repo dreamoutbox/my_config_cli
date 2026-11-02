@@ -86,16 +86,13 @@ func TestLoadMappingDropsConflictingSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadMapping: %v", err)
 	}
-	if len(m.Entries) != 2 {
-		t.Fatalf("expected 2 entries after migration, got %d", len(m.Entries))
-	}
 
 	var hasJSONMerge, hasCustom bool
 	for _, entry := range m.Entries {
 		if entry.Type == EntryTypeSymlink && entry.Target == opencodeTarget {
 			t.Fatal("conflicting symlink entry was not dropped")
 		}
-		if entry.Type == EntryTypeJSONMerge {
+		if entry.Type == EntryTypeJSONMerge && entry.Target == opencodeTarget {
 			hasJSONMerge = true
 		}
 		if entry.Type == EntryTypeSymlink && entry.Target == customTarget {
@@ -118,15 +115,93 @@ func TestLoadMappingDropsConflictingSymlink(t *testing.T) {
 	if err := json.Unmarshal(persisted, &onDisk); err != nil {
 		t.Fatal(err)
 	}
-	if len(onDisk.Entries) != 2 {
-		t.Fatalf("expected migrated mapping on disk to have 2 entries, got %d", len(onDisk.Entries))
+	if len(onDisk.Entries) != len(m.Entries) {
+		t.Fatalf("expected migrated mapping on disk to have %d entries, got %d", len(m.Entries), len(onDisk.Entries))
 	}
 
 	again, err := LoadMapping()
 	if err != nil {
 		t.Fatalf("second LoadMapping: %v", err)
 	}
-	if len(again.Entries) != 2 {
-		t.Fatalf("expected idempotent migration, got %d entries", len(again.Entries))
+	if len(again.Entries) != len(m.Entries) {
+		t.Fatalf("expected idempotent migration, got %d entries (want %d)", len(again.Entries), len(m.Entries))
+	}
+}
+
+func TestDefaultMappingContainsBashrcAndGitconfig(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	m, err := LoadMapping()
+	if err != nil {
+		t.Fatalf("LoadMapping: %v", err)
+	}
+
+	var hasBashrc, hasGitconfig bool
+	for _, entry := range m.Entries {
+		if entry.Target == "~/.bashrc" && entry.Type == EntryTypeSymlink && entry.SourceKind == SourceKindFile {
+			hasBashrc = true
+		}
+		if entry.Target == "~/.gitconfig" && entry.Type == EntryTypeSymlink && entry.SourceKind == SourceKindFile {
+			hasGitconfig = true
+		}
+	}
+	if !hasBashrc {
+		t.Fatal("default mapping missing ~/.bashrc")
+	}
+	if !hasGitconfig {
+		t.Fatal("default mapping missing ~/.gitconfig")
+	}
+}
+
+func TestLoadMappingBackfillsDefaults(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	dir := filepath.Join(tmp, ".my_config_cli")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	// Existing mapping with only a single custom entry
+	customTarget := "~/.custom/file.txt"
+	existing := Mapping{Entries: []Entry{
+		{Source: "~/store/file.txt", Target: customTarget, Type: EntryTypeSymlink, SourceKind: SourceKindFile},
+	}}
+	data, err := json.MarshalIndent(existing, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mappingPath := filepath.Join(dir, "mapping.json")
+	if err := os.WriteFile(mappingPath, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	m, err := LoadMapping()
+	if err != nil {
+		t.Fatalf("LoadMapping: %v", err)
+	}
+
+	var hasCustom, hasBashrc, hasGitconfig bool
+	for _, entry := range m.Entries {
+		if entry.Target == customTarget {
+			hasCustom = true
+		}
+		if entry.Target == "~/.bashrc" {
+			hasBashrc = true
+		}
+		if entry.Target == "~/.gitconfig" {
+			hasGitconfig = true
+		}
+	}
+
+	if !hasCustom {
+		t.Fatal("existing custom entry was lost during backfill")
+	}
+	if !hasBashrc {
+		t.Fatal("~/.bashrc was not backfilled")
+	}
+	if !hasGitconfig {
+		t.Fatal("~/.gitconfig was not backfilled")
 	}
 }

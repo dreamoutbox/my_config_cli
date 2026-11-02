@@ -46,8 +46,14 @@ type Mapping struct {
 
 // LoadMapping reads ~/.my_config_cli/mapping.json.
 // If the file does not exist, it writes and returns the embedded default.
-// Symlink entries that collide with a json_merge target are dropped and the
-// cleaned mapping is persisted once, migrating users seeded before the fix.
+// It backfills any newly introduced embedded default entries into an existing mapping,
+// drops symlink entries that collide with a json_merge target, and persists changes if any.
+//
+// Example usage:
+//   mapping, err := config.LoadMapping()
+//   if err != nil {
+//       log.Fatalf("failed to load mapping: %v", err)
+//   }
 func LoadMapping() (Mapping, error) {
 	dir, err := BaseDir()
 	if err != nil {
@@ -74,7 +80,20 @@ func LoadMapping() (Mapping, error) {
 		return Mapping{}, err
 	}
 
+	var changed bool
+	backfilled, err := backfillDefaultEntries(&m)
+	if err != nil {
+		return Mapping{}, fmt.Errorf("backfilling default entries: %w", err)
+	}
+	if backfilled {
+		changed = true
+	}
+
 	if dropConflictingSymlinks(&m) {
+		changed = true
+	}
+
+	if changed {
 		if err := saveMapping(path, m); err != nil {
 			return Mapping{}, fmt.Errorf("persisting migrated mapping: %w", err)
 		}
@@ -83,8 +102,58 @@ func LoadMapping() (Mapping, error) {
 	return m, nil
 }
 
+// backfillDefaultEntries appends any entries from the embedded default mapping whose
+// Target is not already present in m. This ensures existing users receive newly introduced
+// default mappings (e.g. .bashrc, .gitconfig) without overwriting their existing configurations.
+//
+// Arguments:
+//   - m: pointer to the Mapping to be inspected and updated in place.
+//
+// Returns:
+//   - bool indicating whether any new entries were added.
+//   - error if the embedded default mapping cannot be parsed.
+//
+// Example usage:
+//   var m Mapping
+//   added, err := backfillDefaultEntries(&m)
+//   if err != nil { ... }
+func backfillDefaultEntries(m *Mapping) (bool, error) {
+	var def Mapping
+	if err := json.Unmarshal(assets.DefaultMappingJSON, &def); err != nil {
+		return false, fmt.Errorf("parsing embedded default mapping: %w", err)
+	}
+
+	existingTargets := make(map[string]bool, len(m.Entries))
+	for _, entry := range m.Entries {
+		existingTargets[entry.Target] = true
+	}
+
+	var changed bool
+	for _, defEntry := range def.Entries {
+		if !existingTargets[defEntry.Target] {
+			m.Entries = append(m.Entries, defEntry)
+			existingTargets[defEntry.Target] = true
+			changed = true
+		}
+	}
+
+	return changed, nil
+}
+
 // dropConflictingSymlinks removes symlink entries whose target is also managed
-// by a json_merge entry, warning about each removal. Returns true if changed.
+// by a json_merge entry, warning about each removal.
+//
+// Arguments:
+//   - m: pointer to the Mapping to inspect and filter in place.
+//
+// Returns:
+//   - true if any conflicting entries were removed, false otherwise.
+//
+// Example usage:
+//   var m Mapping
+//   if dropConflictingSymlinks(&m) {
+//       saveMapping(path, m)
+//   }
 func dropConflictingSymlinks(m *Mapping) bool {
 	mergeTargets := make(map[string]bool)
 	for _, entry := range m.Entries {
@@ -108,6 +177,16 @@ func dropConflictingSymlinks(m *Mapping) bool {
 }
 
 // saveMapping writes the mapping back to disk, preserving all user entries.
+//
+// Arguments:
+//   - path: filesystem path where mapping JSON will be written.
+//   - m: Mapping object to serialize and save.
+//
+// Returns:
+//   - error if marshaling or file writing fails.
+//
+// Example usage:
+//   err := saveMapping("/path/to/mapping.json", m)
 func saveMapping(path string, m Mapping) error {
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {

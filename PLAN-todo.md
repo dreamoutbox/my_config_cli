@@ -7,12 +7,12 @@ Implementation plan for items in `TODO.md`:
 
 ---
 
-### Phase 1: Default `.bashrc` and `.gitconfig` Mappings & Embedded Default Migration [STATUS: TODO]
+### Phase 1: Default `.bashrc` and `.gitconfig` Mappings & Embedded Default Migration [STATUS: DONE]
 - Goal: Add `~/.bashrc` and `~/.gitconfig` to the embedded `assets/mapping.json` and ensure existing installations receive newly added embedded default entries automatically.
 - Tasks:
-  - [ ] Add symlink entries for `~/.my_config_cli/config/.bashrc` -> `~/.bashrc` (`source_kind: "file"`) and `~/.my_config_cli/config/.gitconfig` -> `~/.gitconfig` (`source_kind: "file"`) to `assets/mapping.json`.
-  - [ ] Update `config.LoadMapping` in `internal/config/mapping.go` to backfill any missing embedded default entries (by target path) into an existing `~/.my_config_cli/mapping.json` and persist once so existing users get `.bashrc` and `.gitconfig` without losing customizations.
-  - [ ] Add unit tests in `internal/config/mapping_test.go` verifying `.bashrc` and `.gitconfig` are present in defaults and backfilled into pre-existing `mapping.json` files.
+  - [x] Add symlink entries for `~/.my_config_cli/config/.bashrc` -> `~/.bashrc` (`source_kind: "file"`) and `~/.my_config_cli/config/.gitconfig` -> `~/.gitconfig` (`source_kind: "file"`) to `assets/mapping.json`.
+  - [x] Update `config.LoadMapping` in `internal/config/mapping.go` to backfill any missing embedded default entries (by target path) into an existing `~/.my_config_cli/mapping.json` and persist once so existing users get `.bashrc` and `.gitconfig` without losing customizations.
+  - [x] Add unit tests in `internal/config/mapping_test.go` verifying `.bashrc` and `.gitconfig` are present in defaults and backfilled into pre-existing `mapping.json` files.
 - Done when: `./lint.sh` and `./test.sh` pass, and `LoadMapping()` returns `.bashrc` and `.gitconfig` entries on both fresh and existing setups.
 
 ### Phase 2: Git-Tracked Custom Mapping (`custom_mapping.json`) [STATUS: TODO]

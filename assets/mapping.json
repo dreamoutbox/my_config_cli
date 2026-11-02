@@ -101,6 +101,18 @@
       "target": "~/.claude/skills",
       "type": "symlink",
       "source_kind": "dir"
+    },
+    {
+      "source": "~/.my_config_cli/config/.bashrc",
+      "target": "~/.bashrc",
+      "type": "symlink",
+      "source_kind": "file"
+    },
+    {
+      "source": "~/.my_config_cli/config/.gitconfig",
+      "target": "~/.gitconfig",
+      "type": "symlink",
+      "source_kind": "file"
     }
   ]
 }
