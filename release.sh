@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-# Usage: ./release.sh [patch|minor|major|<version>] [--push]
+# Usage: ./release.sh <patch|minor|major> [--push]
 # Bumps version, runs checks, commits, and creates an annotated git tag.
 # Default: no push, unless --push is specified.
 
@@ -17,11 +17,12 @@ for arg in "$@"; do
       PUSH=true
       ;;
     -h|--help)
-      echo "Usage: $0 [patch|minor|major|<version>] [--push]"
+      echo "Usage: $0 <patch|minor|major> [--push]"
+      echo ""
+      echo "Arguments:"
+      echo "  patch|minor|major  Bump semantic version component"
       echo ""
       echo "Options:"
-      echo "  patch|minor|major  Bump semantic version component (default: patch)"
-      echo "  <version>          Specify exact target version (e.g. 0.2.0 or v0.2.0)"
       echo "  --push             Push bump commit and tag to git remote"
       exit 0
       ;;
@@ -30,16 +31,27 @@ for arg in "$@"; do
         BUMP_TARGET="$arg"
       else
         echo "Error: Unknown argument '$arg'" >&2
-        echo "Usage: $0 [patch|minor|major|<version>] [--push]" >&2
+        echo "Usage: $0 <patch|minor|major> [--push]" >&2
         exit 1
       fi
       ;;
   esac
 done
 
-if [ -z "$BUMP_TARGET" ]; then
-  BUMP_TARGET="patch"
-fi
+case "$BUMP_TARGET" in
+  patch|minor|major)
+    ;;
+  "")
+    echo "Error: Bump target is required. Expected: patch, minor, or major." >&2
+    echo "Usage: $0 <patch|minor|major> [--push]" >&2
+    exit 1
+    ;;
+  *)
+    echo "Error: Invalid bump target '$BUMP_TARGET'. Expected: patch, minor, or major." >&2
+    echo "Usage: $0 <patch|minor|major> [--push]" >&2
+    exit 1
+    ;;
+esac
 
 # Ensure git working tree is clean
 if [ -n "$(git status --porcelain)" ]; then
@@ -70,17 +82,9 @@ case "$BUMP_TARGET" in
     NEW_VERSION="$((MAJOR + 1)).0.0"
     ;;
   *)
-    TARGET_CLEAN="${BUMP_TARGET#v}"
-    case "$TARGET_CLEAN" in
-      [0-9]*.[0-9]*.[0-9]*)
-        NEW_VERSION="$TARGET_CLEAN"
-        ;;
-      *)
-        echo "Error: Invalid version or bump target '$BUMP_TARGET'." >&2
-        echo "Expected patch, minor, major, or semantic version X.Y.Z" >&2
-        exit 1
-        ;;
-    esac
+    echo "Error: Invalid bump target '$BUMP_TARGET'. Expected: patch, minor, or major." >&2
+    echo "Usage: $0 <patch|minor|major> [--push]" >&2
+    exit 1
     ;;
 esac
 
