@@ -6,6 +6,7 @@ import (
 
 	"github.com/dreamoutbox/my_config_cli/internal/config"
 	"github.com/dreamoutbox/my_config_cli/internal/git"
+	"github.com/dreamoutbox/my_config_cli/internal/importer"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +38,26 @@ func runPush(cmd *cobra.Command) error {
 
 	if err := git.EnsureRepo(storeDir, repoURL); err != nil {
 		return fmt.Errorf("initializing git repository: %w", err)
+	}
+
+	m, err := config.LoadMapping()
+	if err != nil {
+		return fmt.Errorf("loading mapping: %w", err)
+	}
+
+	adoptResults := importer.AdoptMissing(m.Entries)
+	var adoptedCount int
+	for _, res := range adoptResults {
+		if res.Error != nil {
+			return fmt.Errorf("adopting %s: %w", res.Entry.Target, res.Error)
+		}
+		if res.Action == importer.ActionAdopted {
+			adoptedCount++
+			fmt.Fprintf(cmd.OutOrStdout(), "Adopted %s -> %s\n", res.Entry.Target, res.Entry.Source)
+		}
+	}
+	if adoptedCount > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "Adopted %d configuration file(s) into config store\n", adoptedCount)
 	}
 
 	timestamp := time.Now().UTC().Format("2006-01-02 15:04:05 UTC")

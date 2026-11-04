@@ -41,6 +41,8 @@ Upload configurations from `~/.my_config_cli/config` to your git repository:
 myconfig push --repo git@github.com:username/my-config.git
 ```
 
+On a fresh machine, `myconfig push` automatically adopts mapped files present on the system (such as `~/.gitconfig` and `~/.bashrc`) into the central config store if they are not already present. Existing system files remain regular files and are not replaced with symlinks.
+
 The repository URL is saved to `~/.my_config_cli/settings.json`, so subsequent runs do not require `--repo`:
 
 ```bash

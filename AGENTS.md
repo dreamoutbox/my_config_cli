@@ -65,6 +65,7 @@ All CLI configuration and sync stores live under the user's home directory:
   - `myconfig mapping add <target>`: Adds a custom file or directory entry to `custom_mapping.json`. Automatically infers `file` or `dir`, copies existing target files into the config store if absent, and derives store paths under `~/.my_config_cli/config/`.
   - `myconfig mapping delete <target>` (aliases: `remove`, `rm`): Deletes a custom mapping entry from `custom_mapping.json`.
 - `myconfig push`: Aliased as `myconfig save` and `myconfig backup`. Commits and pushes the central store to git.
+  - Auto-adoption: On a fresh machine where configuration files (like `~/.gitconfig` and `~/.bashrc`) exist on the host but not in the central store, `myconfig push` automatically adopts them into the store before committing and pushing. Host target files remain regular files and are not replaced with symlinks.
   - Supports `--auto-rebase` (default `true`): pulls and rebases remote changes (e.g. remote README or commits from another device) before pushing. Aborts cleanly if conflicts arise.
   - Supports `--force` / `-f`: force pushes to remote repository to overwrite remote changes if needed.
 - `myconfig pull`: Aliased as `myconfig load` and `myconfig restore`. Pulls remote git changes and applies symlinks.

@@ -204,3 +204,138 @@ func TestImportEntryJSONMerge(t *testing.T) {
 		t.Fatalf("expected ActionSkipped for json_merge, got %v", res.Action)
 	}
 }
+
+func TestAdoptMissing(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	// Target 1: real file (.gitconfig)
+	gitconfigTarget := filepath.Join(tmp, ".gitconfig")
+	if err := os.WriteFile(gitconfigTarget, []byte("[user]\nname = Test\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	gitconfigStore := filepath.Join(tmp, "store", ".gitconfig")
+
+	// Target 2: real file (.bashrc), but store already exists with different content
+	bashrcTarget := filepath.Join(tmp, ".bashrc")
+	if err := os.WriteFile(bashrcTarget, []byte("# new bashrc\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	bashrcStore := filepath.Join(tmp, "store", ".bashrc")
+	if err := os.MkdirAll(filepath.Dir(bashrcStore), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bashrcStore, []byte("# existing store bashrc\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Target 3: target does not exist
+	missingTarget := filepath.Join(tmp, "missing.conf")
+	missingStore := filepath.Join(tmp, "store", "missing.conf")
+
+	// Target 4: target is already a symlink pointing to store
+	linkedStore := filepath.Join(tmp, "store", "linked.conf")
+	if err := os.WriteFile(linkedStore, []byte("linked"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	linkedTarget := filepath.Join(tmp, "linked.conf")
+	if err := os.Symlink(linkedStore, linkedTarget); err != nil {
+		t.Fatal(err)
+	}
+
+	// Target 5: directory adoption
+	dirTarget := filepath.Join(tmp, "skills")
+	if err := os.MkdirAll(filepath.Join(dirTarget, "skill1"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dirTarget, "skill1", "SKILL.md"), []byte("# Skill 1"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dirStore := filepath.Join(tmp, "store", "skills")
+
+	// Target 6: json_merge
+	mergeEntry := config.Entry{
+		Source: filepath.Join(tmp, "store", "mcp.json"),
+		Target: filepath.Join(tmp, "opencode.json"),
+		Type:   config.EntryTypeJSONMerge,
+	}
+
+	entries := []config.Entry{
+		{Source: gitconfigStore, Target: gitconfigTarget, Type: config.EntryTypeSymlink},
+		{Source: bashrcStore, Target: bashrcTarget, Type: config.EntryTypeSymlink},
+		{Source: missingStore, Target: missingTarget, Type: config.EntryTypeSymlink},
+		{Source: linkedStore, Target: linkedTarget, Type: config.EntryTypeSymlink},
+		{Source: dirStore, Target: dirTarget, Type: config.EntryTypeSymlink, SourceKind: config.SourceKindDir},
+		mergeEntry,
+	}
+
+	results := AdoptMissing(entries)
+	if len(results) != len(entries) {
+		t.Fatalf("expected %d results, got %d", len(entries), len(results))
+	}
+
+	// 1. gitconfig: should be adopted
+	if results[0].Error != nil {
+		t.Fatalf("gitconfig error: %v", results[0].Error)
+	}
+	if results[0].Action != ActionAdopted {
+		t.Fatalf("expected gitconfig ActionAdopted, got %v", results[0].Action)
+	}
+	content, err := os.ReadFile(gitconfigStore)
+	if err != nil {
+		t.Fatalf("reading adopted gitconfig store: %v", err)
+	}
+	if string(content) != "[user]\nname = Test\n" {
+		t.Fatalf("unexpected content: %q", string(content))
+	}
+	// Verify target remains a regular file, NOT a symlink
+	lstat, err := os.Lstat(gitconfigTarget)
+	if err != nil {
+		t.Fatalf("lstat gitconfigTarget: %v", err)
+	}
+	if lstat.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("gitconfigTarget should remain regular file, got symlink")
+	}
+
+	// 2. bashrc: store already exists, must not overwrite
+	if results[1].Action != ActionSkipped {
+		t.Fatalf("expected bashrc ActionSkipped, got %v", results[1].Action)
+	}
+	bashContent, err := os.ReadFile(bashrcStore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bashContent) != "# existing store bashrc\n" {
+		t.Fatalf("store bashrc should not have been overwritten, got: %q", string(bashContent))
+	}
+
+	// 3. missing target: should be skipped
+	if results[2].Action != ActionSkipped {
+		t.Fatalf("expected missing target ActionSkipped, got %v", results[2].Action)
+	}
+
+	// 4. already linked: should be ActionAlreadyLinked
+	if results[3].Action != ActionAlreadyLinked {
+		t.Fatalf("expected ActionAlreadyLinked, got %v", results[3].Action)
+	}
+
+	// 5. directory adoption: should be adopted
+	if results[4].Error != nil {
+		t.Fatalf("dir error: %v", results[4].Error)
+	}
+	if results[4].Action != ActionAdopted {
+		t.Fatalf("expected dir ActionAdopted, got %v", results[4].Action)
+	}
+	dirContent, err := os.ReadFile(filepath.Join(dirStore, "skill1", "SKILL.md"))
+	if err != nil {
+		t.Fatalf("reading adopted dir file: %v", err)
+	}
+	if string(dirContent) != "# Skill 1" {
+		t.Fatalf("unexpected dir file content: %q", string(dirContent))
+	}
+
+	// 6. json_merge: should be skipped
+	if results[5].Action != ActionSkipped {
+		t.Fatalf("expected json_merge ActionSkipped, got %v", results[5].Action)
+	}
+}

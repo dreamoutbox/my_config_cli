@@ -20,6 +20,7 @@ const (
 	ActionCopied        Action = "copied"
 	ActionSkipped       Action = "skipped"
 	ActionAlreadyLinked Action = "already_linked"
+	ActionAdopted       Action = "adopted"
 )
 
 // Tool identifies supported configuration sources.
@@ -45,7 +46,8 @@ const (
 //   - canonical Tool enum value.
 //
 // Example usage:
-//   canonical := importer.NormalizeTool("bashrc") // returns ToolBash
+//
+//	canonical := importer.NormalizeTool("bashrc") // returns ToolBash
 func NormalizeTool(tool Tool) Tool {
 	switch strings.ToLower(string(tool)) {
 	case "antigravity", "gemini":
@@ -82,7 +84,8 @@ type Result struct {
 //   - Tool enum identifying the corresponding application or subsystem.
 //
 // Example usage:
-//   tool := importer.DetectTool(entry)
+//
+//	tool := importer.DetectTool(entry)
 func DetectTool(entry config.Entry) Tool {
 	target := entry.Target
 	if strings.HasPrefix(target, "~/.gemini/") {
@@ -117,7 +120,8 @@ func DetectTool(entry config.Entry) Tool {
 //   - slice of config.Entry matching the specified tool.
 //
 // Example usage:
-//   gitEntries := importer.FilterEntries(allEntries, importer.ToolGit)
+//
+//	gitEntries := importer.FilterEntries(allEntries, importer.ToolGit)
 func FilterEntries(entries []config.Entry, tool Tool) []config.Entry {
 	normalized := NormalizeTool(tool)
 	if normalized == ToolAll || normalized == "" {
@@ -178,25 +182,110 @@ func ImportEntry(entry config.Entry, dryRun bool) Result {
 		}
 	}
 
-	targetStat, err := os.Stat(targetPath)
+	if err := copyPath(targetPath, sourcePath, dryRun); err != nil {
+		res.Error = fmt.Errorf("copying: %w", err)
+		return res
+	}
+
+	res.Action = ActionCopied
+	return res
+}
+
+// AdoptMissing inspects mapping entries and copies target configurations into the store
+// if and only if the store copy is missing and the target exists on the host system.
+// Existing store files are never overwritten, and existing targets are left as regular files
+// (they are not replaced with symlinks).
+//
+// Arguments:
+//   - entries: slice of config.Entry to inspect for adoption.
+//
+// Returns:
+//   - slice of Result detailing the action taken for each entry.
+//
+// Example usage:
+//
+//	results := importer.AdoptMissing(mapping.Entries)
+func AdoptMissing(entries []config.Entry) []Result {
+	results := make([]Result, len(entries))
+	for i, entry := range entries {
+		results[i] = adoptEntry(entry)
+	}
+	return results
+}
+
+// adoptEntry inspects a single mapping entry and copies target into source
+// when the source does not exist in the store.
+func adoptEntry(entry config.Entry) Result {
+	res := Result{Entry: entry}
+
+	if entry.Type != config.EntryTypeSymlink {
+		res.Action = ActionSkipped
+		res.Reason = fmt.Sprintf("%s entry type not eligible for adoption", entry.Type)
+		return res
+	}
+
+	targetPath, err := pathutil.Expand(entry.Target)
 	if err != nil {
+		res.Error = fmt.Errorf("expanding target path %s: %w", entry.Target, err)
+		return res
+	}
+
+	sourcePath, err := pathutil.Expand(entry.Source)
+	if err != nil {
+		res.Error = fmt.Errorf("expanding source path %s: %w", entry.Source, err)
+		return res
+	}
+
+	// Inspect target on host filesystem.
+	targetLstat, err := os.Lstat(targetPath)
+	if os.IsNotExist(err) {
+		res.Action = ActionSkipped
+		res.Reason = "target does not exist"
+		return res
+	} else if err != nil {
+		res.Error = fmt.Errorf("inspecting target %s: %w", targetPath, err)
+		return res
+	}
+
+	if targetLstat.Mode()&os.ModeSymlink != 0 {
+		linkDest, err := os.Readlink(targetPath)
+		if err != nil {
+			res.Error = fmt.Errorf("reading symlink %s: %w", targetPath, err)
+			return res
+		}
+		if linkDest == sourcePath {
+			res.Action = ActionAlreadyLinked
+			res.Reason = "target already points to store"
+			return res
+		}
+	}
+
+	// Never overwrite existing store files/directories during push.
+	if _, err := os.Lstat(sourcePath); err == nil {
+		res.Action = ActionSkipped
+		res.Reason = "source already exists in store"
+		return res
+	} else if !os.IsNotExist(err) {
+		res.Error = fmt.Errorf("inspecting source %s: %w", sourcePath, err)
+		return res
+	}
+
+	// Verify target is accessible and not a broken symlink.
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		res.Action = ActionSkipped
+		res.Reason = "target is broken symlink"
+		return res
+	} else if err != nil {
 		res.Error = fmt.Errorf("resolving target %s: %w", targetPath, err)
 		return res
 	}
 
-	if targetStat.IsDir() {
-		if err := copyDir(targetPath, sourcePath, dryRun); err != nil {
-			res.Error = fmt.Errorf("copying directory: %w", err)
-			return res
-		}
-	} else {
-		if err := copyFile(targetPath, sourcePath, dryRun); err != nil {
-			res.Error = fmt.Errorf("copying file: %w", err)
-			return res
-		}
+	if err := copyPath(targetPath, sourcePath, false); err != nil {
+		res.Error = fmt.Errorf("adopting %s to %s: %w", targetPath, sourcePath, err)
+		return res
 	}
 
-	res.Action = ActionCopied
+	res.Action = ActionAdopted
 	return res
 }
 
@@ -207,6 +296,30 @@ func ImportAll(entries []config.Entry, dryRun bool) []Result {
 		results[i] = ImportEntry(entry, dryRun)
 	}
 	return results
+}
+
+// copyPath copies a regular file or directory hierarchy from src to dst.
+//
+// Arguments:
+//   - src: path to source file or directory.
+//   - dst: path to destination file or directory.
+//   - dryRun: if true, preview only without modifying filesystem.
+//
+// Returns:
+//   - error if inspection or copying fails.
+//
+// Example usage:
+//
+//	err := copyPath(targetPath, sourcePath, false)
+func copyPath(src, dst string, dryRun bool) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return copyDir(src, dst, dryRun)
+	}
+	return copyFile(src, dst, dryRun)
 }
 
 // copyFile copies a regular file from src to dst, preserving permissions.
