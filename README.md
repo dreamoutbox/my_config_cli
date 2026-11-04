@@ -163,3 +163,12 @@ On initial execution, `myconfig` generates `~/.my_config_cli/mapping.json` using
 - **Shell & Git**:
   - `~/.my_config_cli/config/.bashrc` -> `~/.bashrc`
   - `~/.my_config_cli/config/.gitconfig` -> `~/.gitconfig`
+
+## Development & Testing
+
+```bash
+./lint.sh        # Runs go vet ./...
+./test.sh        # Runs all unit tests
+./docker-test.sh # Runs integration tests inside Ubuntu 24.04 container
+./build.sh       # Compiles ./myconfig
+```

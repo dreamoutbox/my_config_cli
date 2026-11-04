@@ -38,6 +38,10 @@ Context, conventions, architecture, and cautions for AI coding agents working on
 │   ├── importer/          # Reverse-mapping importer engine and copy utilities
 │   ├── pathutil/          # Tilde (~) path expansion helper
 │   └── symlink/           # Symlink creation, health check, and json_merge engine
+├── docker/
+│   ├── tests/             # Docker integration test scripts
+│   └── Dockerfile         # Ubuntu 24.04 test environment
+├── docker-test.sh         # Runs integration tests in Ubuntu 24 container
 ├── build.sh               # Compiles ./myconfig
 ├── lint.sh                # Runs go vet ./...
 ├── test.sh                # Runs all unit tests
@@ -123,9 +127,10 @@ Supported tools in default mappings:
 
 - **Build & Verify:**
   ```bash
-  ./lint.sh    # Runs go vet ./...
-  ./test.sh    # Runs all unit tests
-  ./build.sh   # Compiles ./myconfig
+  ./lint.sh        # Runs go vet ./...
+  ./test.sh        # Runs all unit tests
+  ./docker-test.sh # Runs Ubuntu 24 integration tests in Docker
+  ./build.sh       # Compiles ./myconfig
   ```
 - **Tests:** Always maintain full unit test coverage for new components.
   - `internal/git/git_test.go` uses local temp bare repositories to verify push/pull mechanics without network access.
