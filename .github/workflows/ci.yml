@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - add-docker-test
   pull_request:
     branches:
       - main
+      - add-docker-test
 
 jobs:
   test:
@@ -30,3 +32,13 @@ jobs:
 
       - name: Build binary
         run: ./build.sh
+
+  docker-test:
+    name: Docker Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Docker test
+        run: ./docker-test.sh
